@@ -11,28 +11,46 @@ namespace agentinferkv
         }
     }
 
-    bool PagedBlockManager::CanAllocate (const Request& req) const
+    bool PagedBlockManager::CanAllocate (const Request& req, const std::vector<BlockId>& prefix_blocks) const
     {
         if (tables_.count(req.id)) return false;
-        int need = config_.BlocksForTokens(req.PromptLen()); // 只按prompr估
-        return static_cast<int> (free_blocks_.size()) >= need;
+        int prefix_tokens = static_cast<int>(prefix_blocks.size()) * config_.block_size;
+        int suffix_tokens = req.PromptLen() - prefix_tokens;
+        if (suffix_tokens < 0) suffix_tokens = 0;
+        int need = config_.BlocksForTokens(suffix_tokens);
+        return static_cast<int>(free_blocks_.size()) >= need;
     }
 
-    BlockTableView PagedBlockManager::Allocate (const Request& req)
+    BlockTableView PagedBlockManager::Allocate (const Request& req, const std::vector<BlockId>& prefix_blocks)
     {
-        if (!CanAllocate(req)) return BlockTableView{};
+        if (!CanAllocate(req, prefix_blocks)) return BlockTableView{};
 
-        int need = config_.BlocksForTokens (req.PromptLen());
+        int prefix_tokens = static_cast<int>(prefix_blocks.size()) * config_.block_size;
+        int suffix_tokens = req.PromptLen() - prefix_tokens;
+        if (suffix_tokens < 0) suffix_tokens = 0;
+        int need = config_.BlocksForTokens(suffix_tokens);
+
         BlockTableView view;
-        view.logical_to_physical.reserve(static_cast<std::size_t>(need));
+        view.logical_to_physical.reserve(prefix_blocks.size() + static_cast<std::size_t>(need));
+        for (BlockId bid : prefix_blocks) 
+        {
+            view.logical_to_physical.push_back(bid);
+        }
         for (int i = 0; i < need; ++i) 
         {
-            view.logical_to_physical.push_back(free_blocks_.back());
+            BlockId bid = free_blocks_.back();
             free_blocks_.pop_back();
+            view.logical_to_physical.push_back(bid);
+            ref_counts_[bid] = 1;
         }
         tables_.emplace(req.id, view);
         current_tokens_[req.id] = req.PromptLen();
         return view;
+    }
+
+    bool PagedBlockManager::IsBlockAlive(BlockId id) const 
+    {
+        return ref_counts_.count(id) > 0;   
     }
 
     void PagedBlockManager::Free(RequestId id)
@@ -42,7 +60,7 @@ namespace agentinferkv
 
         for (BlockId bid : it->second.logical_to_physical) 
         {
-            free_blocks_.push_back(bid);
+            ReleaseSharedBlock(bid);
         }
         tables_.erase(it);
         current_tokens_.erase(id);
@@ -77,14 +95,35 @@ namespace agentinferkv
 
         for (int i = 0; i < extra; ++i)
         {
-            it->second.logical_to_physical.push_back(free_blocks_.back());
+            BlockId bid = free_blocks_.back();
             free_blocks_.pop_back();
+            it->second.logical_to_physical.push_back(bid);
+            ref_counts_[bid] = 1;
         }
         current_tokens_[id] = new_total_tokens;
         out_view = it->second;
         return true;
     }
 
+    void PagedBlockManager::RetainSharedBlock(BlockId id) 
+    {        
+        auto it = ref_counts_.find(id);
+        if (it == ref_counts_.end()) return;
+        it->second++;
+    }
+
+    void PagedBlockManager::ReleaseSharedBlock(BlockId id) 
+    {
+        auto rc = ref_counts_.find(id);
+        if (rc == ref_counts_.end()) return;
+        rc->second--;
+        if (rc->second <= 0) 
+        {
+            free_blocks_.push_back(id);
+            ref_counts_.erase(rc);
+        }
+    }
+    
     int PagedBlockManager::EstimateBlocks(const Request& req) const 
     {
         return config_.BlocksForTokens(req.PromptLen());

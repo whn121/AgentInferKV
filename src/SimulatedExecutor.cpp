@@ -7,9 +7,10 @@ namespace agentinferkv
 
     double SimulatedExecutor::Prefill(const Request& req, const BlockTableView& view) 
     {
-        (void)view;  // 模拟阶段不需要块映射；真实 Executor 会用它定位 KV
-        double cost = config_.base_prefill_s +
-                  config_.per_token_prefill_s * static_cast<double>(req.PromptLen());
+        (void)view;
+        int prefill_tokens = req.PromptLen() - req.cached_prefix_len;
+        if (prefill_tokens < 0) prefill_tokens = 0;
+        double cost = config_.base_prefill_s + config_.per_token_prefill_s * static_cast<double>(prefill_tokens);
         return cost > 0.0 ? cost : 0.0;
     }
 

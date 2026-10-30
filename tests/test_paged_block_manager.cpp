@@ -115,6 +115,23 @@ static void TestMoreConcurrentThanNaive() {
     // Paged 上 4 个，Naive 上 1 个。
 }
 
+static void TestSharedBlockRefCount() {
+    PagedBlockManager m(SmallConfig());  // 8 块
+
+    Request r = MakeReq(1, 16, 0);
+    auto view = m.Allocate(r);  // ceil(16/16)=1 块
+    CHECK(view.NumBlocks() == 1);
+    CHECK(m.NumFreeBlocks() == 7);
+    BlockId shared = view.PhysicalBlock(0);
+
+    m.RetainSharedBlock(shared);   // ref: 1 -> 2
+    m.Free(1);                      // ref: 2 -> 1
+    CHECK(m.NumFreeBlocks() == 7);
+
+    m.ReleaseSharedBlock(shared);   // ref: 1 -> 0
+    CHECK(m.NumFreeBlocks() == 8);
+}
+
 int main() {
     TestAllocateOnlyPrompt();
     TestAppendToken();
@@ -122,6 +139,7 @@ int main() {
     TestAppendTokenUnknownId();
     TestFreeAndTail();
     TestMoreConcurrentThanNaive();
+    TestSharedBlockRefCount();
 
     if (g_failures == 0) {
         std::printf("All PagedBlockManager tests passed.\n");

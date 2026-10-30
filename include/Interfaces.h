@@ -39,6 +39,7 @@ namespace agentinferkv
 
         RequestState state = RequestState::kWaiting;
         int generated_tokens = 0;                    // 已生成的token数
+        int cached_prefix_len = 0;   // 命中的前缀 token 数, Prefill 时跳过
 
         double first_token_time = -1.0;              // 首个 token 产出时刻，-1 表示未产出
         double finish_time = -1.0;                   // DONE/CANCELLED 时刻，-1 表示未结束
@@ -112,13 +113,19 @@ namespace agentinferkv
 
         // Scheduler 准入前调用：当前空闲块是否够这个请求用
         // 返回 true 不代表已分配，只是“能分”
-        virtual bool CanAllocate(const Request& req) const = 0;
+        // prefix_blocks 默认空，表示无前缀命中
+        virtual bool CanAllocate(const Request& req, const std::vector<BlockId>& prefix_blocks = {}) const = 0;
 
         // 真正分配块, 返回请求的块视图
         // 调用前必须确保 CanAllocate 为 true，否则返回空视图
-        virtual BlockTableView Allocate(const Request& req) = 0;
+        // 分配块：view = prefix_blocks + 后缀新块
+        // prefix_blocks 的引用计数已由调用方 Retain 过，这里不再加
+        virtual BlockTableView Allocate(const Request& req, const std::vector<BlockId>& prefix_blocks = {}) = 0;
 
-        // 请求结束（完成或取消）时调用，释放该请求独占的块
+         // 块是否仍在分配中(ref_count >= 1)用于过滤 PrefixCache 的 stale 引用。
+        virtual bool IsBlockAlive(BlockId id) const = 0;
+
+        // 请求结束(完成或取消)时调用，释放该请求独占的块
         // 共享块只减引用计数，不减到 0 不回池
         virtual void Free(RequestId id) = 0;
 
@@ -126,6 +133,14 @@ namespace agentinferkv
         // Naive 实现是 no-op（已经按 max_len 分满），Paged 按需补块
         // 成功时把最新的块视图写入 out_view；失败返回 false，out_view 不变
         virtual bool AppendToken(RequestId id, int new_total_tokens, BlockTableView& out_view) = 0;
+
+        // 增加一个块的引用计数。共享前缀时调用。
+        // 块必须已分配（ref_count >= 1），否则是 bug。
+        virtual void RetainSharedBlock(BlockId id) = 0;
+
+        // 减少一个块的引用计数。和 RetainSharedBlock 成对使用。
+        // 减到 0 时回池。
+        virtual void ReleaseSharedBlock(BlockId id) = 0;
 
         // 返回“如果准入这个请求，预估需要多少块”
         // Naive 用 prompt + max_new，Paged 用 prompt

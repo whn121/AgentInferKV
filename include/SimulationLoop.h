@@ -2,6 +2,7 @@
 
 #include "Interfaces.h"
 #include "ModelConfig.h"
+#include "PrefixCache.h"
 
 #include <vector>
 
@@ -20,7 +21,8 @@ namespace agentinferkv
     class SimulationLoop
     {
     public:
-        SimulationLoop(ModelConfig config, IScheduler& scheduler, IBlockSpaceManager& block_mgr, IInferenceExecutor& executor);
+        SimulationLoop(ModelConfig config, IScheduler& scheduler, IBlockSpaceManager& block_mgr, IInferenceExecutor& executor
+                        , PrefixCache* prefix_cache = nullptr);
         
         // 跑完整个trace, 返回结果 调用后 block_mgr 应该回到初始空闲状态
         SimulationResult Run(std::vector<Request> requests);
@@ -30,5 +32,6 @@ namespace agentinferkv
         IScheduler& scheduler_;
         IBlockSpaceManager& block_mgr_;
         IInferenceExecutor& executor_;
+        PrefixCache* prefix_cache_;
     };
 }

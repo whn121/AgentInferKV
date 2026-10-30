@@ -14,12 +14,15 @@ namespace agentinferkv
     public:
         explicit NaivePreallocator(const ModelConfig& config);
 
-        bool CanAllocate(const Request& req) const override;
-        BlockTableView Allocate(const Request& req) override;
+        bool CanAllocate(const Request& req, const std::vector<BlockId>& prefix_blocks = {}) const override;
+        BlockTableView Allocate(const Request& req, const std::vector<BlockId>& prefix_blocks = {}) override;
+        bool IsBlockAlive(BlockId id) const override;
         void Free(RequestId id) override;
         // Naive 已按 max_len 分满，扩块是空操作，直接成功。
         // 仍把当前 view 写回 out_view，保持接口语义一致。
         bool AppendToken(RequestId id, int new_total_tokens, BlockTableView& out_view) override;
+        void RetainSharedBlock(BlockId id) override;
+        void ReleaseSharedBlock(BlockId id) override;
         // Naive 按 prompt + max_new 估算块数。
         int EstimateBlocks(const Request& req) const override;
         int NumFreeBlocks() const override;
@@ -28,5 +31,6 @@ namespace agentinferkv
         ModelConfig config_;
         std::vector<BlockId> free_blocks_; // 空闲块 ID 栈
         std::unordered_map<RequestId, BlockTableView> tables_; // 请求 -> 快视图 
+        std::unordered_map<BlockId, int> ref_counts_;   // 每个已分配块的引用计数
     };
 }

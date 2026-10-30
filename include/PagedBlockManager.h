@@ -13,11 +13,14 @@ namespace agentinferkv
     public:
         explicit PagedBlockManager(const ModelConfig& config);
 
-        bool CanAllocate(const Request& req) const override;
-        BlockTableView Allocate(const Request& req) override;
+        bool CanAllocate(const Request& req, const std::vector<BlockId>& prefix_blocks = {}) const override;
+        BlockTableView Allocate(const Request& req, const std::vector<BlockId>& prefix_blocks = {}) override;
+        bool IsBlockAlive(BlockId id) const override;
         void Free(RequestId id) override;
         int NumFreeBlocks() const override;
         bool AppendToken(RequestId id, int new_total_tokens, BlockTableView& out_view) override;
+        void RetainSharedBlock(BlockId id) override;
+        void ReleaseSharedBlock(BlockId id) override;
         int EstimateBlocks(const Request& req) const override;
 
         // 所有已分配请求最后一块中未使用的token容量和
@@ -29,5 +32,6 @@ namespace agentinferkv
         std::vector<BlockId> free_blocks_;
         std::unordered_map<RequestId, BlockTableView> tables_;
         std::unordered_map<RequestId, int> current_tokens_;  // 每请求当前已分配的 token 容量
+        std::unordered_map<BlockId, int> ref_counts_;
     };
 }

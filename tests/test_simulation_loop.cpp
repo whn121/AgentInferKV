@@ -3,6 +3,7 @@
 #include "SimulatedExecutor.h"
 #include "SimulationLoop.h"
 #include "PagedBlockManager.h"
+#include "PrefixCache.h"
 
 #include <cstdio>
 
@@ -226,6 +227,51 @@ static void TestNaiveNoAppend() {
     CHECK(mgr.NumFreeBlocks() == config.num_blocks);
 }
 
+// 开启 PrefixCache：两个请求共享前缀，第二个请求 TTFT 更短
+static void TestPrefixCacheReducesTtft() {
+    auto config = MakeConfig(16);
+    FCFSScheduler sched;
+    PagedBlockManager mgr(config);
+    SimulatedExecutor exec;
+    PrefixCache cache;
+    SimulationLoop loop(config, sched, mgr, exec, &cache);
+
+    // 两个请求：相同 System Prompt（前 16 token），不同 User Query
+    Request r1 = MakeReq(1, 0.0, 32, 5);
+    Request r2 = MakeReq(2, 0.1, 32, 5);  // 晚到，r1 已完成
+    for (int i = 0; i < 16; ++i) {
+        r1.prompt_tokens[i] = 1000 + i;
+        r2.prompt_tokens[i] = 1000 + i;
+    }
+    for (int i = 16; i < 32; ++i) {
+        r1.prompt_tokens[i] = 2000 + i;
+        r2.prompt_tokens[i] = 3000 + i;
+    }
+
+    auto result = loop.Run({r1, r2});
+    if (result.completed.size() != 2) {
+        std::printf("FAIL(TestPrefixCacheReducesTtft): completed=%zu\n",
+                    result.completed.size());
+        ++g_failures;
+        return;
+    }
+
+    const Request* c1 = nullptr;
+    const Request* c2 = nullptr;
+    for (const auto& r : result.completed) {
+        if (r.id == 1) c1 = &r;
+        if (r.id == 2) c2 = &r;
+    }
+    if (c1 == nullptr || c2 == nullptr) {
+        std::printf("FAIL(TestPrefixCacheReducesTtft): missing request\n");
+        ++g_failures;
+        return;
+    }
+    CHECK(c2->cached_prefix_len == 16);       // r2 命中 1 个完整块
+    CHECK(c2->Ttft() < c1->Ttft());           // 命中使 TTFT 更短
+    CHECK(cache.TotalHits() >= 1);            // 至少命中一次
+}
+
 int main() {
     TestSingleRequest();
     TestSingleTokenRequest();
@@ -234,6 +280,7 @@ int main() {
     TestEventOrdering();
     TestPagedAppendTokenInLoop();
     TestNaiveNoAppend();
+    TestPrefixCacheReducesTtft();
 
     if (g_failures == 0) {
         std::printf("All SimulationLoop tests passed.\n");

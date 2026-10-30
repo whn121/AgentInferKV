@@ -107,6 +107,24 @@ static void TestAppendTokenUnknownId() {
     CHECK(m.NumFreeBlocks() == 8);  // 状态不变
 }
 
+// 共享块：Retain 后 Release 一次不回池，第二次才回池
+static void TestSharedBlockRefCount() {
+    NaivePreallocator m(SmallConfig());  // 8 块
+
+    Request r1 = MakeReq(1, 16, 0);  // 1 块
+    auto view1 = m.Allocate(r1);
+    CHECK(view1.NumBlocks() == 1);
+    CHECK(m.NumFreeBlocks() == 7);
+    BlockId shared = view1.PhysicalBlock(0);
+
+    m.RetainSharedBlock(shared);   // ref: 1 -> 2
+    m.Free(1);                      // ref: 2 -> 1，不回池
+    CHECK(m.NumFreeBlocks() == 7);
+
+    m.ReleaseSharedBlock(shared);   // ref: 1 -> 0，回池
+    CHECK(m.NumFreeBlocks() == 8);
+}
+
 int main() {
     TestBasicAllocate();
     TestExhaustion();
@@ -114,6 +132,7 @@ int main() {
     TestDoubleFree();
     TestAppendTokenIsNoOp();
     TestAppendTokenUnknownId();
+    TestSharedBlockRefCount();
 
     if (g_failures == 0) {
         std::printf("All NaivePreallocator tests passed.\n");

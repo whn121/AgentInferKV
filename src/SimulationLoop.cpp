@@ -22,8 +22,10 @@ namespace agentinferkv
         constexpr double kEps = 1e-9; // 1的-9次方
     }
 
-    SimulationLoop::SimulationLoop(ModelConfig config, IScheduler& scheduler, IBlockSpaceManager& block_mgr, IInferenceExecutor& executor)
-         : config_ (config), scheduler_ (scheduler), block_mgr_ (block_mgr), executor_ (executor) {}
+    SimulationLoop::SimulationLoop(ModelConfig config, IScheduler& scheduler, IBlockSpaceManager& block_mgr
+                                    , IInferenceExecutor& executor, PrefixCache* prefix_cache)
+         : config_ (config), scheduler_ (scheduler), block_mgr_ (block_mgr), executor_ (executor)
+            ,  prefix_cache_(prefix_cache) {}
 
     SimulationResult SimulationLoop::Run (std::vector<Request> requests)
     {
@@ -95,8 +97,21 @@ namespace agentinferkv
                 if (it->req.state == RequestState::kPrefill)
                 {
                     it->req.FinishPrefill(sim_time);
+                    if (prefix_cache_ != nullptr) 
+                    {
+                        auto new_blocks = prefix_cache_->Insert(it->req.prompt_tokens, it->view.logical_to_physical
+                                                                , config_.block_size);
+                        for (BlockId bid : new_blocks) 
+                        {
+                            block_mgr_.RetainSharedBlock(bid);   // 缓存持有引用
+                        }
+                    }
                     if (it->req.state == RequestState::kDone)
                     {
+                        if (prefix_cache_ != nullptr) 
+                        {
+                            prefix_cache_->Release(it->req.prompt_tokens, config_.block_size);
+                        }
                         // max_new_tokens == 1 的情况，Prefill 产出的首 token 就是最后一个
                         completed.push_back(it->req);
                         block_mgr_.Free(it->req.id);
@@ -113,6 +128,10 @@ namespace agentinferkv
                     it->req.DecodeOneToken(sim_time);
                     if (it->req.state == RequestState::kDone)
                     {
+                        if (prefix_cache_ != nullptr) 
+                        {
+                            prefix_cache_->Release(it->req.prompt_tokens, config_.block_size);
+                        }
                         completed.push_back(it->req);
                         block_mgr_.Free(it->req.id);
                         it = running.erase(it);
@@ -127,6 +146,10 @@ namespace agentinferkv
                             // 扩块失败,块耗尽 第一版直接取消，标记为 OOM
                             it->req.Cancel(sim_time);
                             block_mgr_.Free(it->req.id);
+                            if (prefix_cache_ != nullptr) 
+                            {
+                                prefix_cache_->Release(it->req.prompt_tokens, config_.block_size);
+                            }
                             completed.push_back(it->req);
                             it = running.erase(it);
                             continue;
@@ -164,6 +187,24 @@ namespace agentinferkv
             {
                 auto it = std::find_if (waiting.begin(), waiting.end(), [id](const Request& r){ return r.id == id; });
                 if (it == waiting.end()) continue;
+
+                // 查前缀
+                std::vector<BlockId> prefix_blocks;
+                if (prefix_cache_ != nullptr) 
+                {
+                    auto raw = prefix_cache_->Match(it->prompt_tokens, config_.block_size);
+                    for (BlockId bid : raw.matched_blocks) 
+                    {
+                        if (!block_mgr_.IsBlockAlive(bid)) break;  // stale 引用, 路径断
+                        prefix_blocks.push_back(bid);
+                    }
+                    // Retain 共享块的引用
+                    for (BlockId bid : prefix_blocks) 
+                    {
+                        block_mgr_.RetainSharedBlock(bid);
+                    }
+                    it->cached_prefix_len = static_cast<int>(prefix_blocks.size()) * config_.block_size;
+                }
 
                 BlockTableView view = block_mgr_.Allocate(*it);
                 if (view.NumBlocks() == 0) continue;  // Scheduler 说能分，实际分不到
