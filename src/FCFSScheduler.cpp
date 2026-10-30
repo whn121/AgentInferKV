@@ -5,7 +5,7 @@
 namespace agentinferkv
 {
     SchedulerOutput FCFSScheduler::Schedule(const std::vector<Request>& waiting, 
-        const std::vector<Request>& running, const IBlockSpaceManager& block_manager)
+        const std::vector<Request>& running, BlockBudget& budget)
     {
         (void)running; // 第一版不做抢占, running 里的请求一直占着块, 不重新调度
 
@@ -16,7 +16,7 @@ namespace agentinferkv
         {
             ordered.push_back(&r);
         }
-        std::sort(ordered.begin(), ordered.end(), [](const Request* a, Request* b)
+        std::sort(ordered.begin(), ordered.end(), [](const Request* a, const Request* b)
         {
             if (a->arrival_time != b->arrival_time)
             {
@@ -28,7 +28,8 @@ namespace agentinferkv
         SchedulerOutput out;
         for (const Request* r : ordered)
         {
-            if (!block_manager.CanAllocate(*r))
+            // 用预算模拟扣减；扣不到就停，后面的不插队（FCFS 严格语义）
+            if (!budget.TryReserveTokens(r->TotalTokens()))
             {
                 // FCFS 语义: 前面的请求分配不到, 后面的也就别插队了
                 break;

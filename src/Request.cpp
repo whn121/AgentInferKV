@@ -57,4 +57,50 @@ namespace agentinferkv
         << ", latency=" << Latency() << "}";
         return oss.str();
     }
+
+    bool Request::StartPrefill (double now)
+    {
+        (void) now; // 开始时刻暂不记录，TTFT 从首 token 时间算
+        if (!CanTransition(state, RequestState::kPrefill)) return false;
+        state = RequestState::kPrefill;
+        return true;
+    }
+
+    bool Request::FinishPrefill (double now)
+    {
+        if (!CanTransition(state, RequestState::kDecode)) return false;
+        state = RequestState::kDecode;
+        generated_tokens = 1; // Prefill 产出首 token
+        first_token_time = now;
+
+        // max_new_tokens == 1 时，首 token 就是最后一个 token。
+        // 经 DECODE 中间态再转 DONE，保持状态机只允许合法转换。
+        if (generated_tokens >= max_new_tokens) 
+        {
+            state = RequestState::kDone;
+            finish_time = now;
+        }
+        return true;
+    }
+
+    bool Request::DecodeOneToken (double now)
+    {
+        if (state != RequestState::kDecode) return false;
+        ++generated_tokens;
+        if (generated_tokens >= max_new_tokens)
+        {
+            state = RequestState::kDone;
+            finish_time = now;
+        }
+        return true;
+    }
+
+    bool Request::Cancel (double now)
+    {
+        // 先检查, 在写finish_time, 顺序反了会在违法Cannel时污染时间戳
+        if (!CanTransition(state, RequestState::kCancelled)) return false;
+        state = RequestState::kCancelled;
+        finish_time = now;
+        return true;
+    }
 }

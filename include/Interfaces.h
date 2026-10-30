@@ -55,6 +55,12 @@ namespace agentinferkv
 
         // 简洁,用于日志
         std::string DebugString() const;
+
+        // 状态推进。全部走 CanTransition 校验，非法转换返回 false，状态不变。
+        bool StartPrefill(double now);
+        bool FinishPrefill(double now);
+        bool DecodeOneToken(double now);
+        bool Cancel(double now);
     };
     
     // 逻辑块 -> 物理块 的只读映射
@@ -71,6 +77,31 @@ namespace agentinferkv
             return logical_to_physical.at(static_cast<std::size_t> (logical_idx));
         }
     };
+
+    // Scheduler 用的预算副本。
+    // 从真实块池复制一份空闲块数，Scheduler 遍历时按顺序扣减；
+    // 只影响副本，不影响真实池。真实池只由 Allocate/Free 扣/还。
+    struct BlockBudget 
+    {
+        int free_blocks = 0;
+        int block_size = 16;
+
+        // 需要多少块就扣多少块；不够返回 false，不扣。
+        bool TryReserve(int need_blocks) 
+        {
+            if (need_blocks < 0 || free_blocks < need_blocks) return false;
+            free_blocks -= need_blocks;
+            return true;
+        }
+
+        // 按 token 数扣块，向上取整。Scheduler 不需要知道 ModelConfig。
+        bool TryReserveTokens(int num_tokens) 
+        {
+            if (num_tokens <= 0) return true;
+            int need = (num_tokens + block_size - 1) / block_size;
+            return TryReserve(need);
+        }
+};
 
     // Scheduler 每步的输出：本步允许进入运行的请求 ID
     // 不包含物理块，物理块由 BlockSpaceManager 独立分配
@@ -108,12 +139,10 @@ namespace agentinferkv
     public:
         virtual ~IScheduler() = default;
 
-        // waiting: 当前等待队列快照
-        // running: 当前运行中的请求快照
-        // block_manager: 用来查 CanAllocate / NumFreeBlocks
-        // 返回允许进入 running 的请求 ID。
+        // budget 是可变引用：Scheduler 按顺序模拟扣减
+        // 返回的 id 列表保证在扣减语义下都能分配
         virtual SchedulerOutput Schedule(const std::vector<Request>& waiting,
-        const std::vector<Request>& running, const IBlockSpaceManager& block_manager) = 0;
+        const std::vector<Request>& running, BlockBudget& budget) = 0;
     };
 
     // 执行器：负责一次 Prefill 或一次 Decode 的计算边界。

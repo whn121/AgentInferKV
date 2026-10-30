@@ -14,6 +14,8 @@ add_library(agentinferkv_core
   src/FCFSScheduler.cpp
   src/NaivePreallocator.cpp
   src/TraceReplayer.cpp
+  src/SimulatedExecutor.cpp
+  src/SimulationLoop.cpp 
 )
 target_include_directories(agentinferkv_core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
 target_compile_options(agentinferkv_core PRIVATE -Wall -Wextra -Wpedantic)
@@ -27,7 +29,9 @@ foreach(test_name
     test_request
     test_model_config
     test_naive_preallocator
-    test_fcfs_scheduler)
+    test_fcfs_scheduler
+    test_simulated_executor
+    test_simulation_loop)
   add_executable(${test_name} tests/${test_name}.cpp)
   target_link_libraries(${test_name} PRIVATE agentinferkv_core)
   add_test(NAME ${test_name} COMMAND ${test_name})

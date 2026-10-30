@@ -31,66 +31,91 @@ static Request MakeReq(RequestId id, double arrival, int prompt_len, int max_new
     return r;
 }
 
+// 两个请求都能装下：1 块 + 1 块 = 2 块，总 4 块
 static void TestAllFit() {
     NaivePreallocator m(SmallConfig());
     FCFSScheduler s;
 
     std::vector<Request> waiting = {
-        MakeReq(2, 0.02, 10, 5),  // 1 块
-        MakeReq(1, 0.01, 10, 5),  // 1 块
+        MakeReq(2, 0.02, 10, 5),  // 15 token -> 1 块
+        MakeReq(1, 0.01, 10, 5),  // 15 token -> 1 块
     };
     std::vector<Request> running;
 
-    auto out = s.Schedule(waiting, running, m);
-    // 按 arrival 排序后应为 1, 2
+    BlockBudget budget = m.MakeBudget();
+    auto out = s.Schedule(waiting, running, budget);
+
     CHECK(out.scheduled_ids.size() == 2);
     CHECK(out.scheduled_ids[0] == 1);
     CHECK(out.scheduled_ids[1] == 2);
+    CHECK(budget.free_blocks == 2);  // 4 - 1 - 1 = 2
 }
 
+// 请求1 占 3 块后只剩 1 块，请求2 需要 2 块，失败，FCFS 停住
 static void TestPartialFit() {
     NaivePreallocator m(SmallConfig());
     FCFSScheduler s;
 
-    // 三个请求，每个 1 块，总共只能容 4 块，但前两个都能过。
-    // 第三个来之前先占两块，第三个也能过。
-    // 用一个更极端的：请求 1 就要 3 块，请求 2 要 2 块
     std::vector<Request> waiting = {
         MakeReq(1, 0.01, 40, 4),   // 44 token -> 3 块
         MakeReq(2, 0.02, 20, 8),   // 28 token -> 2 块
     };
     std::vector<Request> running;
 
-    auto out = s.Schedule(waiting, running, m);
-    // 请求 1 占 3 块后只剩 1 块，请求 2 需要 2 块，不够。
-    // FCFS 严格语义：请求 2 不插队。
+    BlockBudget budget = m.MakeBudget();
+    auto out = s.Schedule(waiting, running, budget);
+
     CHECK(out.scheduled_ids.size() == 1);
     CHECK(out.scheduled_ids[0] == 1);
+    CHECK(budget.free_blocks == 1);  // 4 - 3 = 1，请求2 需要 2 块被拒
 }
 
+// 同一 arrival_time，按 id 升序
 static void TestDeterministicTieBreak() {
     NaivePreallocator m(SmallConfig());
     FCFSScheduler s;
 
-    // 同一 arrival_time，按 id 升序
     std::vector<Request> waiting = {
-        MakeReq(3, 0.01, 10, 0),
+        MakeReq(3, 0.01, 10, 0),  // 10 token -> 1 块
         MakeReq(1, 0.01, 10, 0),
         MakeReq(2, 0.01, 10, 0),
     };
     std::vector<Request> running;
 
-    auto out = s.Schedule(waiting, running, m);
+    BlockBudget budget = m.MakeBudget();
+    auto out = s.Schedule(waiting, running, budget);
+
     CHECK(out.scheduled_ids.size() == 3);
     CHECK(out.scheduled_ids[0] == 1);
     CHECK(out.scheduled_ids[1] == 2);
     CHECK(out.scheduled_ids[2] == 3);
 }
 
+// 预算不够时，Scheduler 不再返回“假承诺”
+static void TestBudgetIsDebited() {
+    NaivePreallocator m(SmallConfig());
+    FCFSScheduler s;
+
+    // 4 块，两个请求各要 3 块：只能上第一个
+    std::vector<Request> waiting = {
+        MakeReq(1, 0.01, 40, 4),  // 44 token -> 3 块
+        MakeReq(2, 0.02, 40, 4),  // 44 token -> 3 块
+    };
+    std::vector<Request> running;
+
+    BlockBudget budget = m.MakeBudget();
+    auto out = s.Schedule(waiting, running, budget);
+
+    CHECK(out.scheduled_ids.size() == 1);
+    CHECK(out.scheduled_ids[0] == 1);
+    CHECK(budget.free_blocks == 1);
+}
+
 int main() {
     TestAllFit();
     TestPartialFit();
     TestDeterministicTieBreak();
+    TestBudgetIsDebited();
 
     if (g_failures == 0) {
         std::printf("All FCFSScheduler tests passed.\n");

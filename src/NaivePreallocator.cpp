@@ -39,7 +39,7 @@ namespace agentinferkv
     {
         auto it = tables_.find(id);
         if (it == tables_.end()) return;  // 重复 Free
-        
+
         for (BlockId bid : it->second.logical_to_physical) 
         {
             free_blocks_.push_back(bid);
@@ -50,5 +50,13 @@ namespace agentinferkv
     int NaivePreallocator::NumFreeBlocks() const 
     {
         return static_cast<int>(free_blocks_.size());
+    }
+
+    BlockBudget NaivePreallocator::MakeBudget() const 
+    {
+        BlockBudget b;
+        b.free_blocks = static_cast<int>(free_blocks_.size());
+        b.block_size = config_.block_size;
+        return b;
     }
 }

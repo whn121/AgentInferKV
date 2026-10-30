@@ -18,6 +18,8 @@ namespace agentinferkv
         BlockTableView Allocate(const Request& req) override;
         void Free(RequestId id) override;
         int NumFreeBlocks() const override;
+        // 生成当前状态的预算副本，给 Scheduler 用。
+        BlockBudget MakeBudget() const;
 
     private:
         ModelConfig config_;

@@ -10,7 +10,7 @@ namespace agentinferkv
     {
     public:
         SchedulerOutput Schedule(const std::vector<Request>& waiting, const std::vector<Request>& running,
-            const IBlockSpaceManager& block_manager) override;
+            BlockBudget& budget) override;
     };
     
 } 
