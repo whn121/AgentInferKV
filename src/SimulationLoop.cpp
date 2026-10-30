@@ -119,6 +119,19 @@ namespace agentinferkv
                     }
                     else
                     {
+                        // Paged需要在序列增长到新块边界时扩块; Naive 是 no-op (空操作)
+                        int new_toal = it->req.PromptLen() + it->req.generated_tokens;
+                        BlockTableView new_view;
+                        if (!block_mgr_.AppendToken(it->req.id, new_toal, new_view))
+                        {
+                            // 扩块失败,块耗尽 第一版直接取消，标记为 OOM
+                            it->req.Cancel(sim_time);
+                            block_mgr_.Free(it->req.id);
+                            completed.push_back(it->req);
+                            it = running.erase(it);
+                            continue;
+                        }
+                        it->view = new_view;  // 同步最新映射
                         it->next_event_time = sim_time + executor_.Decode(it->req, it->view);
                         ++it;
                     }
@@ -134,7 +147,10 @@ namespace agentinferkv
             // 不依赖 IBlockSpaceManager 提供 MakeBudget，避免每个实现重复拼装
             BlockBudget budget;
             budget.free_blocks = block_mgr_.NumFreeBlocks();
-            budget.block_size = config_.block_size;
+            budget.blocks_needed = [this](const Request& r) 
+            {
+                return block_mgr_.EstimateBlocks(r);
+            };
             std::vector<Request> running_snapshot;
             running_snapshot.reserve(running.size());
             for (const auto& r : running)

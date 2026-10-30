@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <string>
 #include <vector>
+#include <functional>
 
 
 namespace agentinferkv
@@ -78,30 +79,23 @@ namespace agentinferkv
         }
     };
 
-    // Scheduler 用的预算副本。
-    // 从真实块池复制一份空闲块数，Scheduler 遍历时按顺序扣减；
-    // 只影响副本，不影响真实池。真实池只由 Allocate/Free 扣/还。
+    // Scheduler 用的预算副本
+    // blocks_needed 由调用方注入：Naive 按 TotalTokens 估，Paged 按 PromptLen 估
+    // 只影响副本，不影响真实池。真实池只由 Allocate/Free 扣/还
     struct BlockBudget 
     {
         int free_blocks = 0;
-        int block_size = 16;
+        std::function<int(const Request&)> blocks_needed;
 
-        // 需要多少块就扣多少块；不够返回 false，不扣。
-        bool TryReserve(int need_blocks) 
+        // 扣减这个请求需要的块；不够返回 false，不扣。
+        bool TryReserveForRequest(const Request& req) 
         {
-            if (need_blocks < 0 || free_blocks < need_blocks) return false;
-            free_blocks -= need_blocks;
+            int need = blocks_needed ? blocks_needed(req) : 0;
+            if (need < 0 || free_blocks < need) return false;
+            free_blocks -= need;
             return true;
         }
-
-        // 按 token 数扣块，向上取整。Scheduler 不需要知道 ModelConfig。
-        bool TryReserveTokens(int num_tokens) 
-        {
-            if (num_tokens <= 0) return true;
-            int need = (num_tokens + block_size - 1) / block_size;
-            return TryReserve(need);
-        }
-};
+    };
 
     // Scheduler 每步的输出：本步允许进入运行的请求 ID
     // 不包含物理块，物理块由 BlockSpaceManager 独立分配
@@ -127,6 +121,16 @@ namespace agentinferkv
         // 请求结束（完成或取消）时调用，释放该请求独占的块
         // 共享块只减引用计数，不减到 0 不回池
         virtual void Free(RequestId id) = 0;
+
+        // 请求需要扩到 new_total_tokens 个 token 的容量
+        // Naive 实现是 no-op（已经按 max_len 分满），Paged 按需补块
+        // 成功时把最新的块视图写入 out_view；失败返回 false，out_view 不变
+        virtual bool AppendToken(RequestId id, int new_total_tokens, BlockTableView& out_view) = 0;
+
+        // 返回“如果准入这个请求，预估需要多少块”
+        // Naive 用 prompt + max_new，Paged 用 prompt
+        // Scheduler 的预算扣减依赖它，保证“估算”和“实际分配”口径一致
+        virtual int EstimateBlocks(const Request& req) const = 0;
 
         // 当前空闲物理块数，用于观测和背压判断
         virtual int NumFreeBlocks() const = 0;

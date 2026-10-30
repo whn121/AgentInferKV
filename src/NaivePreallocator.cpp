@@ -47,16 +47,24 @@ namespace agentinferkv
         tables_.erase(it);
     }
 
+    bool NaivePreallocator::AppendToken(RequestId id, int new_total_tokens, BlockTableView& out_view)
+    {
+        (void)new_total_tokens;  // Naive 不看目标容量，已经分满
+
+        auto it = tables_.find(id);
+        if (it == tables_.end()) return false;  
+
+        out_view = it->second;  // 写回当前视图，内容不变
+        return true;
+    }
+
+    int NaivePreallocator::EstimateBlocks(const Request& req) const 
+    {
+        return config_.BlocksForTokens(req.TotalTokens());
+    }
+
     int NaivePreallocator::NumFreeBlocks() const 
     {
         return static_cast<int>(free_blocks_.size());
-    }
-
-    BlockBudget NaivePreallocator::MakeBudget() const 
-    {
-        BlockBudget b;
-        b.free_blocks = static_cast<int>(free_blocks_.size());
-        b.block_size = config_.block_size;
-        return b;
     }
 }

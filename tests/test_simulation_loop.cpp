@@ -2,6 +2,7 @@
 #include "NaivePreallocator.h"
 #include "SimulatedExecutor.h"
 #include "SimulationLoop.h"
+#include "PagedBlockManager.h"
 
 #include <cstdio>
 
@@ -180,12 +181,59 @@ static void TestEventOrdering() {
     CHECK(r1->finish_time < r2->finish_time);
 }
 
+// Paged 下，请求完成时块数应该大于初始分配的块数（证明扩块发生了）
+static void TestPagedAppendTokenInLoop() {
+    auto config = MakeConfig(16);
+    FCFSScheduler sched;
+    PagedBlockManager mgr(config);
+    SimulatedExecutor exec;
+    SimulationLoop loop(config, sched, mgr, exec);
+
+    // prompt=20 → 初始 2 块（32 token 容量）
+    // max_new=20 → 总 40 token，需要 3 块，Decode 中会扩 1 块
+    std::vector<Request> reqs = { MakeReq(1, 0.0, 20, 20) };
+    auto result = loop.Run(std::move(reqs));
+
+    if (result.completed.size() != 1) {
+        std::printf("FAIL(TestPagedAppendTokenInLoop): completed=%zu\n",
+                    result.completed.size());
+        ++g_failures;
+        return;
+    }
+    CHECK(result.completed[0].state == RequestState::kDone);
+    CHECK(result.completed[0].generated_tokens == 20);
+    CHECK(mgr.NumFreeBlocks() == config.num_blocks);  // 全部释放
+}
+
+// Naive 下，AppendToken 是 no-op，块数不增长
+static void TestNaiveNoAppend() {
+    auto config = MakeConfig(16);
+    FCFSScheduler sched;
+    NaivePreallocator mgr(config);
+    SimulatedExecutor exec;
+    SimulationLoop loop(config, sched, mgr, exec);
+
+    std::vector<Request> reqs = { MakeReq(1, 0.0, 20, 20) };
+    auto result = loop.Run(std::move(reqs));
+
+    if (result.completed.size() != 1) {
+        std::printf("FAIL(TestNaiveNoAppend): completed=%zu\n",
+                    result.completed.size());
+        ++g_failures;
+        return;
+    }
+    CHECK(result.completed[0].state == RequestState::kDone);
+    CHECK(mgr.NumFreeBlocks() == config.num_blocks);
+}
+
 int main() {
     TestSingleRequest();
     TestSingleTokenRequest();
     TestTwoRequests();
     TestResourceContention();
     TestEventOrdering();
+    TestPagedAppendTokenInLoop();
+    TestNaiveNoAppend();
 
     if (g_failures == 0) {
         std::printf("All SimulationLoop tests passed.\n");

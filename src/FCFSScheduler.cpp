@@ -29,7 +29,7 @@ namespace agentinferkv
         for (const Request* r : ordered)
         {
             // 用预算模拟扣减；扣不到就停，后面的不插队（FCFS 严格语义）
-            if (!budget.TryReserveTokens(r->TotalTokens()))
+            if (!budget.TryReserveForRequest(*r))
             {
                 // FCFS 语义: 前面的请求分配不到, 后面的也就别插队了
                 break;

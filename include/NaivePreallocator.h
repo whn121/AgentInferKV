@@ -17,9 +17,12 @@ namespace agentinferkv
         bool CanAllocate(const Request& req) const override;
         BlockTableView Allocate(const Request& req) override;
         void Free(RequestId id) override;
+        // Naive 已按 max_len 分满，扩块是空操作，直接成功。
+        // 仍把当前 view 写回 out_view，保持接口语义一致。
+        bool AppendToken(RequestId id, int new_total_tokens, BlockTableView& out_view) override;
+        // Naive 按 prompt + max_new 估算块数。
+        int EstimateBlocks(const Request& req) const override;
         int NumFreeBlocks() const override;
-        // 生成当前状态的预算副本，给 Scheduler 用。
-        BlockBudget MakeBudget() const;
 
     private:
         ModelConfig config_;

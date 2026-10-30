@@ -78,11 +78,42 @@ static void TestDoubleFree() {
     CHECK(m.NumFreeBlocks() == 8);
 }
 
+// AppendToken 对 Naive 是 no-op：不改变块数，写回相同视图
+static void TestAppendTokenIsNoOp() {
+    NaivePreallocator m(SmallConfig());
+    Request r = MakeReq(1, 32, 8);  // total=40 → 3 块
+
+    auto view1 = m.Allocate(r);
+    CHECK(view1.NumBlocks() == 3);
+    CHECK(m.NumFreeBlocks() == 5);
+
+    BlockTableView view2;
+    // 请求目标容量 100 token，Naive 不扩块
+    CHECK(m.AppendToken(1, 100, view2));
+    CHECK(view2.NumBlocks() == 3);         // 视图不变
+    CHECK(m.NumFreeBlocks() == 5);         // 空闲块不变
+
+    // 视图内容与分配时一致
+    for (int i = 0; i < 3; ++i) {
+        CHECK(view1.PhysicalBlock(i) == view2.PhysicalBlock(i));
+    }
+}
+
+// 未知 id 的 AppendToken 返回 false
+static void TestAppendTokenUnknownId() {
+    NaivePreallocator m(SmallConfig());
+    BlockTableView view;
+    CHECK(!m.AppendToken(999, 100, view));
+    CHECK(m.NumFreeBlocks() == 8);  // 状态不变
+}
+
 int main() {
     TestBasicAllocate();
     TestExhaustion();
     TestFreeUnknownIdIsNoOp();
     TestDoubleFree();
+    TestAppendTokenIsNoOp();
+    TestAppendTokenUnknownId();
 
     if (g_failures == 0) {
         std::printf("All NaivePreallocator tests passed.\n");
