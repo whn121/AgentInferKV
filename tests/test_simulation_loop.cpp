@@ -272,6 +272,35 @@ static void TestPrefixCacheReducesTtft() {
     CHECK(cache.TotalHits() >= 1);            // 至少命中一次
 }
 
+// 多请求同时 decode 时，会走 DecodeBatch；完成数和资源账目正常
+static void TestBatchDecode() {
+    auto config = MakeConfig(16);
+    FCFSScheduler sched;
+    PagedBlockManager mgr(config);
+    SimulatedExecutor exec;
+    SimulationLoop loop(config, sched, mgr, exec);
+
+    // 3 个请求，同一时刻到达，同时 decode
+    std::vector<Request> reqs = {
+        MakeReq(1, 0.0, 16, 3),
+        MakeReq(2, 0.0, 16, 3),
+        MakeReq(3, 0.0, 16, 3),
+    };
+    auto result = loop.Run(std::move(reqs));
+
+    if (result.completed.size() != 3) {
+        std::printf("FAIL(TestBatchDecode): completed=%zu\n",
+                    result.completed.size());
+        ++g_failures;
+        return;
+    }
+    for (const auto& r : result.completed) {
+        CHECK(r.state == RequestState::kDone);
+        CHECK(r.generated_tokens == 3);
+    }
+    CHECK(mgr.NumFreeBlocks() == config.num_blocks);
+}
+
 int main() {
     TestSingleRequest();
     TestSingleTokenRequest();
@@ -281,6 +310,7 @@ int main() {
     TestPagedAppendTokenInLoop();
     TestNaiveNoAppend();
     TestPrefixCacheReducesTtft();
+    TestBatchDecode();
 
     if (g_failures == 0) {
         std::printf("All SimulationLoop tests passed.\n");

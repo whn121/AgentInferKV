@@ -31,12 +31,13 @@ static Request MakeAgentReq(RequestId id, double arrival, int system_len, int us
 }
 
 static void RunOnce(const char* label, const ModelConfig& config, const ExecutorConfig& exec_cfg
-                    , const std::vector<Request>& reqs, bool enable_prefix) 
+                    , const std::vector<Request>& reqs, bool enable_prefix,
+                    std::size_t lru_capacity = 0) 
 {
     FCFSScheduler sched;
     PagedBlockManager mgr(config);
     SimulatedExecutor exec(exec_cfg);
-    PrefixCache cache;
+    PrefixCache cache(&mgr, lru_capacity);
     SimulationLoop loop(config, sched, mgr, exec, enable_prefix ? &cache : nullptr);
 
     // Run 接收 vector 按值，拷一份
@@ -63,6 +64,15 @@ static void RunOnce(const char* label, const ModelConfig& config, const Executor
     std::printf("  completed=%zu avg_ttft=%.4f total_cached_tokens=%d total_prefill_tokens=%d hits=%d/%d\n"
                 , result.completed.size(), avg_ttft, total_cached, total_prefill_tokens
                 , cache.TotalHits(), cache.TotalQueries());
+    std::printf("  max_concurrent=%d peak_blocks=%d free_blocks=%d cached_blocks=%zu evicted=%zu\n"
+                , result.max_concurrent, result.peak_blocks_in_use
+                , mgr.NumFreeBlocks(), cache.CachedBlocks(), cache.EvictedBlocks());
+
+    // 账目自检：所有请求都结束后，每个物理块要么在池子里，要么被缓存持有。
+    // 少了就说明引用计数只加不减（历史 bug：前缀块没进请求块表）。
+    const int accounted = mgr.NumFreeBlocks() + static_cast<int>(cache.CachedBlocks());
+    std::printf("  blocks: free+cached=%d/%d %s\n\n", accounted, config.num_blocks,
+                accounted == config.num_blocks ? "OK" : "MISMATCH");
 }
 
 int main() 
@@ -87,7 +97,9 @@ int main()
     }
 
     RunOnce("PrefixCache OFF", config, exec_cfg, reqs, false);
-    RunOnce("PrefixCache ON", config, exec_cfg, reqs, true);
+    RunOnce("PrefixCache ON (no eviction)", config, exec_cfg, reqs, true, 0);
+    // 上限压到 3 块：5 个请求一共产出 7 个可缓存块，必然触发淘汰
+    RunOnce("PrefixCache ON + LRU(3 blocks)", config, exec_cfg, reqs, true, 3);
 
     return 0;
 }

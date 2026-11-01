@@ -40,32 +40,6 @@ static void TestInsertThenMatch() {
     CHECK(result.matched_tokens == 4);
 }
 
-// 两个请求共享前缀，第二个请求插入时复用已有节点
-static void TestSharedPrefix() {
-    PrefixCache cache;
-    // 请求1：[1,2,3,4, 5,6,7,8] → 2 块
-    auto p1 = MakePrompt({1, 2, 3, 4, 5, 6, 7, 8});
-    cache.Insert(p1, {10, 11}, 4);
-
-    // 请求2：前缀相同 [1,2,3,4]，后缀不同
-    auto p2 = MakePrompt({1, 2, 3, 4, 20, 21, 22, 23});
-    // 先 Match 请求2，应该命中 1 块（[1,2,3,4]）
-    auto result = cache.Match(p2, 4);
-    CHECK(result.matched_blocks.size() == 1);
-    CHECK(result.matched_blocks[0] == 10);
-    CHECK(result.matched_tokens == 4);
-
-    // 插入请求2 的后缀（第 2 块是新的 block 20）
-    cache.Insert(p2, {20}, 4);  // 只插第 2 块？不对，Insert 从 token 0 开始
-
-    // 上面这行 Insert 语义错误：Insert 的 blocks[i] 对应 prompt 第 i 块。
-    // p2 的第 0 块是 [1,2,3,4]（已存在），第 1 块是 [20,21,22,23]（新）。
-    // 正确调用：cache.Insert(p2, {10, 20}, 4) 或只插新部分。
-    // 第一版约定：Insert 的 blocks 和 prompt 的 block 一一对应。
-    // 所以插入 p2 应该传 {10, 20}，第一个 10 复用节点，第二个 20 新建。
-    // 重新做这个测试：
-}
-
 // 修正后的共享前缀测试
 static void TestSharedPrefixCorrect() {
     PrefixCache cache;

@@ -39,6 +39,7 @@ namespace agentinferkv
 
         RequestState state = RequestState::kWaiting;
         int generated_tokens = 0;                    // 已生成的token数
+        std::string prompt_text;     // 真实文本LlamaCppExecutor 用它 tokenize
         int cached_prefix_len = 0;   // 命中的前缀 token 数, Prefill 时跳过
 
         double first_token_time = -1.0;              // 首个 token 产出时刻，-1 表示未产出
@@ -63,6 +64,8 @@ namespace agentinferkv
         bool FinishPrefill(double now);
         bool DecodeOneToken(double now);
         bool Cancel(double now);
+        // 收到 EOS 提前结束。
+        bool FinishByEos(double now);
     };
     
     // 逻辑块 -> 物理块 的只读映射
@@ -177,6 +180,19 @@ namespace agentinferkv
 
         // 对请求做一步 Decode (生成一个token), 返回耗时
         virtual double Decode(const Request& req, const BlockTableView& view) = 0;
+
+        // 批量 Decode, 多个请求的 decode 一步合并成一次执行
+        // 返回的 costs[i] 是第 i 个请求这一步的耗时
+        // 单个 Decode 可以视为 batch=1 的特例
+        virtual std::vector<double> DecodeBatch(const std::vector<const Request*>& reqs,
+                                            const std::vector<BlockTableView>& views) = 0;
+
+        // 请求完成/取消时释放执行侧资源(KV seq、采样状态等)
+        // SimulatedExecutor 是空实现,LlamaCppExecutor 释放 seq_id 和 KV cache
+        virtual void Release(RequestId id) = 0;
+
+        // 该请求是否已采样到 EOS。默认 false，SimulatedExecutor 不实现。
+        virtual bool IsEos(RequestId id) const { (void)id; return false; }
     };
 
 }

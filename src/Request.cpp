@@ -103,4 +103,12 @@ namespace agentinferkv
         finish_time = now;
         return true;
     }
+
+    bool Request::FinishByEos(double now) 
+    {
+        if (!CanTransition(state, RequestState::kDone)) return false;
+        state = RequestState::kDone;
+        finish_time = now;
+        return true;
+    }
 }

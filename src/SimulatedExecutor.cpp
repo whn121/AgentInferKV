@@ -21,4 +21,20 @@ namespace agentinferkv
         double cost = config_.base_decode_s + config_.per_token_decode_s;
         return cost > 0.0 ? cost : 0.0;
     }
-}
+
+    std::vector<double> SimulatedExecutor::DecodeBatch(const std::vector<const Request*>& reqs,
+            const std::vector<BlockTableView>& views) 
+    {
+        std::vector<double> costs(reqs.size(), 0.0);
+        for (std::size_t i = 0; i < reqs.size(); ++i) 
+        {
+            costs[i] = Decode(*reqs[i], views[i]);
+        }
+        return costs;
+    }
+
+    void SimulatedExecutor::Release(RequestId id) 
+    {
+        (void)id;  // 模拟执行器无执行侧资源
+    }
+}   

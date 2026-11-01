@@ -28,6 +28,11 @@ namespace agentinferkv
         // 返回 base_decode + per_token_decode * 1（Decode 每步只生成 1 个 token）
         double Decode(const Request& req, const BlockTableView& view) override;
 
+        std::vector<double> DecodeBatch(const std::vector<const Request*>& reqs,
+                                    const std::vector<BlockTableView>& views) override;
+            
+        void Release(RequestId id) override;
+
     private:
         ExecutorConfig config_;
 

@@ -45,6 +45,7 @@ namespace agentinferkv
         std::vector<Request> completed;
         double sim_time = 0;
         int max_concurrent = 0;
+        int peak_blocks = 0;
 
         while (next_arrival_idx < requests.size() || !waiting.empty() || !running.empty())
         {
@@ -86,82 +87,150 @@ namespace agentinferkv
             }
 
             // 第四步, 处理完成事件 (可能同一时刻多个)
-            for (auto it = running.begin(); it != running.end(); )
+            // 4a 先处理 PREFILL 完成
             {
-                if (it->next_event_time > sim_time + kEps) 
+                std::vector<std::size_t> to_remove;
+                for (std::size_t i = 0; i < running.size(); ++i) 
                 {
-                    ++it;
-                    continue;
-                }
+                    auto& r = running[i];
+                    if (r.next_event_time > sim_time + kEps) continue;
+                    if (r.req.state != RequestState::kPrefill) continue;
 
-                if (it->req.state == RequestState::kPrefill)
-                {
-                    it->req.FinishPrefill(sim_time);
+                    r.req.FinishPrefill(sim_time);
                     if (prefix_cache_ != nullptr) 
                     {
-                        auto new_blocks = prefix_cache_->Insert(it->req.prompt_tokens, it->view.logical_to_physical
-                                                                , config_.block_size);
+                        auto new_blocks = prefix_cache_->Insert(r.req.prompt_tokens, r.view.logical_to_physical,
+                            config_.block_size);
                         for (BlockId bid : new_blocks) 
                         {
-                            block_mgr_.RetainSharedBlock(bid);   // 缓存持有引用
+                            block_mgr_.RetainSharedBlock(bid);
                         }
                     }
-                    if (it->req.state == RequestState::kDone)
+                    if (r.req.state == RequestState::kDone) 
                     {
+                        executor_.Release(r.req.id);
                         if (prefix_cache_ != nullptr) 
                         {
-                            prefix_cache_->Release(it->req.prompt_tokens, config_.block_size);
+                            prefix_cache_->Release(r.req.prompt_tokens, config_.block_size);
                         }
-                        // max_new_tokens == 1 的情况，Prefill 产出的首 token 就是最后一个
-                        completed.push_back(it->req);
-                        block_mgr_.Free(it->req.id);
-                        it = running.erase(it);
-                    }
-                    else
+                        completed.push_back(r.req);
+                        block_mgr_.Free(r.req.id);
+                        to_remove.push_back(i);
+                    } 
+                    else 
                     {
-                        it->next_event_time = sim_time + executor_.Decode(it->req, it->view);
-                        ++it;
+                        r.next_event_time = sim_time + executor_.Decode(r.req, r.view);
                     }
                 }
-                else if (it->req.state == RequestState::kDecode)
+                for (auto it = to_remove.rbegin(); it != to_remove.rend(); ++it) 
                 {
-                    it->req.DecodeOneToken(sim_time);
-                    if (it->req.state == RequestState::kDone)
+                    running.erase(running.begin() + *it);
+                }
+            }
+
+            // 4b 收集所有该 DECODE 的请求，批量执行
+            {
+                std::vector<std::size_t> to_remove;
+                std::vector<std::size_t> decode_ready;
+
+                for (std::size_t i = 0; i < running.size(); ++i) 
+                {
+                    auto& r = running[i];
+                    if (r.next_event_time > sim_time + kEps) continue;
+                    if (r.req.state != RequestState::kDecode) continue;
+
+                    r.req.DecodeOneToken(sim_time);
+                    if (r.req.state == RequestState::kDone) 
                     {
+                        executor_.Release(r.req.id);
                         if (prefix_cache_ != nullptr) 
                         {
-                            prefix_cache_->Release(it->req.prompt_tokens, config_.block_size);
+                            prefix_cache_->Release(r.req.prompt_tokens, config_.block_size);
                         }
-                        completed.push_back(it->req);
-                        block_mgr_.Free(it->req.id);
-                        it = running.erase(it);
+                        completed.push_back(r.req);
+                        block_mgr_.Free(r.req.id);
+                        to_remove.push_back(i);
+                        continue;
                     }
-                    else
+
+                    int new_total = r.req.PromptLen() + r.req.generated_tokens;
+                    BlockTableView new_view;
+                    if (!block_mgr_.AppendToken(r.req.id, new_total, new_view)) 
                     {
-                        // Paged需要在序列增长到新块边界时扩块; Naive 是 no-op (空操作)
-                        int new_toal = it->req.PromptLen() + it->req.generated_tokens;
-                        BlockTableView new_view;
-                        if (!block_mgr_.AppendToken(it->req.id, new_toal, new_view))
+                        r.req.Cancel(sim_time);
+                        executor_.Release(r.req.id);
+                        if (prefix_cache_ != nullptr) 
                         {
-                            // 扩块失败,块耗尽 第一版直接取消，标记为 OOM
-                            it->req.Cancel(sim_time);
-                            block_mgr_.Free(it->req.id);
+                            prefix_cache_->Release(r.req.prompt_tokens, config_.block_size);
+                        }
+                        completed.push_back(r.req);
+                        block_mgr_.Free(r.req.id);
+                        to_remove.push_back(i);
+                        continue;
+                    }
+                    r.view = new_view;
+                    decode_ready.push_back(i);
+                }
+
+                // 一次性批量执行
+                if (!decode_ready.empty()) 
+                {
+                    std::vector<const Request*> batch_reqs;
+                    std::vector<BlockTableView> batch_views;
+                    batch_reqs.reserve(decode_ready.size());
+                    batch_views.reserve(decode_ready.size());
+                    for (std::size_t i : decode_ready) 
+                    {
+                        batch_reqs.push_back(&running[i].req);
+                        batch_views.push_back(running[i].view);
+                    }
+                    std::vector<double> costs = executor_.DecodeBatch(batch_reqs, batch_views);
+                    for (std::size_t j = 0; j < decode_ready.size(); ++j) 
+                    {
+                        std::size_t idx = decode_ready[j];
+                        if (costs[j] < 0.0) 
+                        {
+                            // 执行失败: 取消
+                            running[idx].req.Cancel(sim_time);
+                            executor_.Release(running[idx].req.id);
                             if (prefix_cache_ != nullptr) 
                             {
-                                prefix_cache_->Release(it->req.prompt_tokens, config_.block_size);
+                                prefix_cache_->Release(running[idx].req.prompt_tokens, config_.block_size);
                             }
-                            completed.push_back(it->req);
-                            it = running.erase(it);
-                            continue;
+                            completed.push_back(running[idx].req);
+                            block_mgr_.Free(running[idx].req.id);
+                            to_remove.push_back(idx);
+                        } 
+                        else
+                        {
+                            if (executor_.IsEos(running[idx].req.id))
+                            {
+                                running[idx].req.FinishByEos(sim_time);
+                            }
+                            if (running[idx].req.state == RequestState::kDone)
+                            {
+                                executor_.Release(running[idx].req.id);
+                                if (prefix_cache_ != nullptr)
+                                {
+                                    prefix_cache_->Release(
+                                        running[idx].req.prompt_tokens,
+                                        config_.block_size);
+                                }
+                                completed.push_back(running[idx].req);
+                                block_mgr_.Free(running[idx].req.id);
+                                to_remove.push_back(idx);
+                            }
+                            else
+                            {
+                                running[idx].next_event_time = sim_time + costs[j];
+                            }
                         }
-                        it->view = new_view;  // 同步最新映射
-                        it->next_event_time = sim_time + executor_.Decode(it->req, it->view);
-                        ++it;
                     }
                 }
-                else
+
+                for (auto it = to_remove.rbegin(); it != to_remove.rend(); ++it) 
                 {
-                    ++it; // 理论上不会到这里
+                    running.erase(running.begin() + *it);
                 }
             }
 
@@ -206,15 +275,36 @@ namespace agentinferkv
                     it->cached_prefix_len = static_cast<int>(prefix_blocks.size()) * config_.block_size;
                 }
 
-                BlockTableView view = block_mgr_.Allocate(*it);
-                if (view.NumBlocks() == 0) continue;  // Scheduler 说能分，实际分不到
+                BlockTableView view = block_mgr_.Allocate(*it, prefix_blocks);
+                // Scheduler 说能分，实际分不到
+                if (view.NumBlocks() == 0)
+                {
+                    for (BlockId bid : prefix_blocks)
+                    {
+                        block_mgr_.ReleaseSharedBlock(bid);
+                    }
+                    continue;
+                }
 
                 it->StartPrefill(sim_time);
                 
                 RunningRequest rr;
                 rr.req = *it;
                 rr.view = view;
-                rr.next_event_time = sim_time + executor_.Prefill(*it, view);
+                double prefill_cost = executor_.Prefill(*it, view);
+                if (prefill_cost < 0.0) 
+                {
+                    // 执行失败 取消请求，释放资源
+                    // 这条路径上 Insert 还没执行过 所以不能调 PrefixCache::Release
+                    // 否则会把别的请求的节点引用计数减掉
+                    it->Cancel(sim_time);
+                    executor_.Release(it->id);
+                    completed.push_back(*it);
+                    block_mgr_.Free(it->id);
+                    waiting.erase(it);
+                    continue;
+                }
+                rr.next_event_time = sim_time + prefill_cost;
                 running.push_back(std::move(rr));
                 waiting.erase(it);
             }
@@ -225,12 +315,20 @@ namespace agentinferkv
             {
                 max_concurrent = cur;
             }
+
+            // 峰值块占用 Paged 与 Naive 的碎片差异直接体现在这里
+            const int used_blocks = config_.num_blocks - block_mgr_.NumFreeBlocks();
+            if (used_blocks > peak_blocks)
+            {
+                peak_blocks = used_blocks;
+            }
         }
 
         SimulationResult result;
         result.completed = std::move(completed);
         result.total_sim_time = sim_time;
         result.max_concurrent = max_concurrent;
+        result.peak_blocks_in_use = peak_blocks;
         return result;
     }
 }
