@@ -7,7 +7,7 @@ namespace agentinferkv
     SchedulerOutput FCFSScheduler::Schedule(const std::vector<Request>& waiting, 
         const std::vector<Request>& running, BlockBudget& budget)
     {
-        (void)running; // 第一版不做抢占, running 里的请求一直占着块, 不重新调度
+        (void)running; // 不做抢占：running 里的请求一直占着块，不重新调度
 
         // 按arrival_time 升序; 同一时刻按id升序, 保存确定性
         std::vector<const Request*> ordered;

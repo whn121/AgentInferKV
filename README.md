@@ -64,9 +64,10 @@ flowchart TD
 - **不是完整推理引擎**：没有 CUDA kernel、attention 计算、真实 KV 张量存储。
 - **控制平面与执行平面是半解耦的**：`PagedBlockManager` 的 `BlockId` 和 llama.cpp 内部
   KV cache 是两套系统，不是完全控制。
-- **不支持跨请求 GPU KV 共享**：llama.cpp 的 seq 级 KV cache 需要 `llama_memory_seq_cp`
-  才能跨请求复制，涉及源 seq 存活、块对齐、引用计数，第一版不做。**PrefixCache 只在
-  模拟层生效，真实执行层未实现前缀复用。**
+- **跨请求 GPU KV 共享只在 dense 模型上成立**：执行层用 `llama_memory_seq_cp` 共享 cell，
+  但 hybrid / recurrent 模型的循环状态是整段历史的摘要，无法按 position 区间截取，
+  代码会在启动时用 `llama_model_is_hybrid/is_recurrent` 检测并禁用（本机 Qwen3.5-4B
+  就是这种情况）。**dense 模型上的收益未实测，README 不编数字。**
 - **不支持抢占（preemption）/ KV swap**：块不足时用背压和取消替代。这也是实验1里
   Paged 完成率下降的直接原因。
 - **不支持多模型 / 多 tokenizer**：PrefixCache 只有一棵树，没有 `model_id` 维度。

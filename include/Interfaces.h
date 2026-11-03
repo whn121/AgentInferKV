@@ -14,7 +14,10 @@ namespace agentinferkv
     using BlockId = std::int32_t;
     using TokenId = std::int32_t;
 
-    // WAITING -> PREFILL -> DECODE -> DOME 失败转为CANCELLED
+    // 合法转换只有四条路：
+    //   WAITING → PREFILL → DECODE → DONE
+    //   任意非终态 → CANCELLED
+    // 终态（DONE / CANCELLED）不能再转换；具体判定见 Request.cpp 的 CanTransition。
     enum class RequestState
     {
         kWaiting,     // 已到达，等待调度准入
