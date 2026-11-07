@@ -35,6 +35,8 @@ int main(int argc, char** argv) {
     int n_ctx = 2048;
     int max_pinned = 3;
     double arrival_gap = -1.0;   // <0 表示用默认值（sequential 0.6s / 否则 0.05s）
+    bool verify_reuse = false;
+    int reuse_margin = 0;
     for (int i = 2; i < argc; ++i) {
         if (std::strcmp(argv[i], "--no-prefix") == 0) enable_prefix = false;
         if (std::strcmp(argv[i], "--no-kv-reuse") == 0) enable_kv_reuse = false;
@@ -44,6 +46,8 @@ int main(int argc, char** argv) {
         if (std::strncmp(argv[i], "--ctx=", 6) == 0) n_ctx = std::atoi(argv[i] + 6);
         if (std::strncmp(argv[i], "--max-pinned=", 13) == 0) max_pinned = std::atoi(argv[i] + 13);
         if (std::strncmp(argv[i], "--arrival-gap=", 14) == 0) arrival_gap = std::atof(argv[i] + 14);
+        if (std::strcmp(argv[i], "--verify-reuse") == 0) verify_reuse = true;
+        if (std::strncmp(argv[i], "--reuse-margin=", 15) == 0) reuse_margin = std::atoi(argv[i] + 15);
     }
     if (system_repeat < 1) system_repeat = 1;
     if (n_ctx < 256) n_ctx = 256;
@@ -52,6 +56,8 @@ int main(int argc, char** argv) {
     // 之前的写法是"先拍一组默认值(32层/4头/256维)再建模型"，
     // 池容量、每 token KV 字节都会算错，面试一问"这些数字哪来的"就答不上。
     LlamaCppExecutor exec(model_path, 99, n_ctx, 16);
+    exec.SetVerifyReuse(verify_reuse);
+    exec.SetReuseMargin(reuse_margin);
     exec.SetMaxPinnedSeqs(static_cast<std::size_t>(max_pinned > 0 ? max_pinned : 1));
 
     ModelConfig config;

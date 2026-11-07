@@ -212,15 +212,37 @@ for i in 1 2 3; do ./build-real/agentinferkv_demo_real ~/models/qwen3-5-4B-Q4_K_
 | 复用开（`--kv-reuse`，reuse_hits=4，1600 token） | `0130… 28fb… 1524… 7c97… 1524…`（两次相同） |
 | 复用关（默认） | `0130… c568… 7c97… 7c97… 1524…`（两次相同） |
 
-**结论：`seq_cp` 路径在长前缀（400 token）下确实改变输出，是真实的一致性 bug，不是测量噪声。**
-目前**该特性默认关闭**，需要时用 `--kv-reuse` 显式打开（会在启动时提示实验性）。
+**结论（经过探针修正）：不是 KV 算错，而是 batch 形状不同导致 greedy 偶发翻转。**
 
-**待查方向**（按可能性排序）：
-1. `seq_cp` 共享 cell 后，目标 seq 在 pos=400..414 写自己的 query token，
-   可能与源 seq 同位置的 cell 冲突（同 prompt 前缀、不同 query）；
-2. `seq_cp` 之后 `n_past`/`seq_add` 的位置集合是否完整；
-3. 统一 KV 下 `seq_cp` 是否要求按 cell 对齐（`chunk_tokens_` 与 `block_size` 都是 16，
-   但 llama.cpp 内部 cell 粒度可能不同）。
+加了 `--verify-reuse` 探针（复用路径解码后，在**独立 context** 里对同一段 prompt 做完整 prefill，
+逐元素比最后一个位置的 logits）：
+
+| 复用边距 | reused token | maxdiff | argmax 是否一致 | digest 与完整 prefill |
+|---|---|---|---|---|
+| 0 | 400 | 1.11 | **4/4 一致（320）** | DIFF |
+| 16 | 384 | 1.05 | 4/4 一致 | SAME |
+| 32 | 368 | 1.14 | 4/4 一致 | DIFF |
+| 64 | 336 | 1.26 | 4/4 一致 | DIFF |
+
+**怎么读这张表**：
+
+- `maxdiff ≈ 1` 看起来很大，但**不能当成 KV 错的证据**：参考路径是 415 token 一个 batch，
+  复用路径只解 15 token，**batch 形状不同 → GEMM 归约顺序不同**，fp16 下 logits 差 O(1) 是正常的。
+- **argmax 4/4 全部一致**，说明复制过来的前缀 KV 在功能上是正确的（首个 token 选对了）。
+- digest 分叉发生在**后续 decode 步**：logits 差 ~1 时，接近平局的 token 会被翻转。
+  margin=16 那次恰好没翻，margin=32/64 又翻了 —— 说明它**不是边距能修的系统性错误**，
+  而是采样对数值扰动的敏感。
+
+**所以正确的工程结论是**：
+
+1. `seq_cp` 的 KV 复用**没有算错**（首 token 一致）；
+2. 但它改变了 batch 形状，**greedy 输出不保证与完整 prefill 逐位一致**；
+3. 若要 bitwise 对齐，必须在同一进程内用相同 batch 形状做对照——真实 serving 做不到；
+4. 因此该特性**默认关闭**，需要时 `--kv-reuse --verify-reuse` 自行验证；
+   README 不声称"复用后输出完全一致"，也不声称 TTFT 收益（当前工作负载下收益在噪声内）。
+
+**待查（如果要继续）**：把"复用"和"完整 prefill"放进**同一个 batch**（两个 seq 同时 decode），
+消除 batch 形状差异后再比 logits——那才能分离"KV 正确性"与"浮点归约顺序"。
 
 复现命令（严格串行）：
 

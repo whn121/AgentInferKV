@@ -68,6 +68,15 @@ namespace agentinferkv
         int NumKvHeads() const { return num_kv_heads_; }
         int HeadDim() const { return head_dim_; }
 
+        // 诊断开关：复用生效时，在独立 context 里再跑一遍完整 prefill，
+        // 对比两边最后一个位置的 logits。用来区分"浮点噪声"和"KV 真错"。
+        void SetVerifyReuse(bool on) { verify_reuse_ = on; }
+        double LastVerifyMaxDiff() const { return last_verify_max_diff_; }
+
+        // 复用边距：不重用缓存前缀最后的 N 个 token（N 对齐到 chunk），
+        // 用来规避 seq_cp 在边界 cell 上的归属冲突（见 README 实验四）。
+        void SetReuseMargin(int margin_tokens) { reuse_margin_ = margin_tokens > 0 ? margin_tokens : 0; }
+
         // 每个请求生成过的 token id。用来验证"开了 KV 复用之后 greedy 采样结果不变"。
         // Release 不清这里，方便跑完后对比。
         const std::vector<int32_t>* GeneratedIds(RequestId id) const
@@ -92,6 +101,7 @@ namespace agentinferkv
 
         int next_seq_id_ = 0;
         int n_seq_max_ = 0;  
+        int n_ctx_ = 2048;
         std::unordered_map<RequestId, int> seq_map_; // RequestId -> llama_seq_id
         std::unordered_map<RequestId, int> n_past_; // RequestId -> 已处理 token 数
         std::unordered_map<RequestId, int32_t> pending_tokens_;  // 待喂入下一次 decode 的 token
@@ -105,6 +115,13 @@ namespace agentinferkv
         int num_layers_ = 0;
         int num_kv_heads_ = 0;
         int head_dim_ = 0;
+
+        // 复用一致性诊断：独立 context，避免与主 context 的 KV 互相干扰
+        bool verify_reuse_ = false;
+        llama_context* verify_ctx_ = nullptr;
+        double last_verify_max_diff_ = -1.0;
+        int verify_n_ctx_ = 0;
+        int reuse_margin_ = 0;
         int chunk_tokens_ = 16;
         std::size_t max_pinned_ = 3;
         std::uint64_t touch_clock_ = 0;

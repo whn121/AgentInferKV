@@ -3,6 +3,7 @@
 #include "llama.h"
 
 #include <algorithm>
+#include <cmath>
 #include <chrono>
 #include <cstdio>
 #include <stdexcept>
@@ -11,7 +12,7 @@ namespace agentinferkv
 {
 
     LlamaCppExecutor::LlamaCppExecutor(const std::string& model_path, int n_gpu_layers, int n_ctx, int n_seq_max)
-         : n_seq_max_ (n_seq_max)
+         : n_seq_max_ (n_seq_max), n_ctx_ (n_ctx)
     {
         llama_backend_init();
 
@@ -71,6 +72,7 @@ namespace agentinferkv
     LlamaCppExecutor::~LlamaCppExecutor() 
     {
         if (sampler_ != nullptr) llama_sampler_free(sampler_);
+        if (verify_ctx_ != nullptr) llama_free(verify_ctx_);
         if (ctx_ != nullptr) llama_free(ctx_);
         if (model_ != nullptr) llama_model_free(model_);
         llama_backend_free();
@@ -245,7 +247,12 @@ namespace agentinferkv
         if (chunk_tokens_ > 0 && req.cached_prefix_len > 0)
         {
             // 至少留 1 个 token 给真实 decode，否则这一次拿不到 logits。
-            const int want = std::min(req.cached_prefix_len, static_cast<int>(tokens.size()) - 1);
+            // reuse_margin_ 是"不重用的尾部 token 数"，用来规避 seq_cp 在边界
+            // cell 归属上的冲突（实验见 README 实验四）。
+            int cached = req.cached_prefix_len - reuse_margin_;
+            if (cached < 0) cached = 0;
+            cached -= cached % (chunk_tokens_ > 0 ? chunk_tokens_ : 1);   // 对齐到 chunk
+            const int want = std::min(cached, static_cast<int>(tokens.size()) - 1);
             if (want > 0)
             {
                 auto hit = prefix_index_.find(PrefixKey(tokens, want));
@@ -293,6 +300,72 @@ namespace agentinferkv
         auto t0 = std::chrono::steady_clock::now();
         int rc = llama_decode(ctx_, batch);
         auto t1 = std::chrono::steady_clock::now();
+
+        // ── 复用一致性诊断 ──
+        // 在独立 context 里对同一段 prompt 做完整 prefill，比较最后位置的 logits。
+        // 必须在任何后续 decode 之前把复用路径的 logits 拷出来（会被覆盖）。
+        if (rc == 0 && verify_reuse_ && reuse_len > 0 && n_new > 0)
+        {
+            const int n_all = static_cast<int>(tokens.size());
+            const int n_vocab = llama_vocab_n_tokens(llama_model_get_vocab(model_));
+
+            std::vector<float> reuse_logits(static_cast<std::size_t>(n_vocab));
+            const float* got = llama_get_logits_ith(ctx_, n_new - 1);
+            if (got != nullptr)
+            {
+                std::copy(got, got + n_vocab, reuse_logits.begin());
+
+                if (verify_ctx_ == nullptr)
+                {
+                    llama_context_params vp = llama_context_default_params();
+                    vp.n_ctx = n_ctx_;
+                    vp.n_batch = 512;
+                    vp.n_seq_max = 1;
+                    vp.kv_unified = true;
+                    verify_ctx_ = llama_init_from_model(model_, vp);
+                }
+
+                if (verify_ctx_ != nullptr)
+                {
+                    llama_batch rb = llama_batch_init(n_all, 0, 1);
+                    for (int i = 0; i < n_all; ++i)
+                    {
+                        rb.token[i] = tokens[static_cast<std::size_t>(i)];
+                        rb.pos[i] = i;
+                        rb.n_seq_id[i] = 1;
+                        rb.seq_id[i][0] = 0;
+                        rb.logits[i] = (i == n_all - 1) ? 1 : 0;
+                    }
+                    rb.n_tokens = n_all;
+
+                    if (llama_decode(verify_ctx_, rb) == 0)
+                    {
+                        const float* ref = llama_get_logits_ith(verify_ctx_, n_all - 1);
+                        if (ref != nullptr)
+                        {
+                            double maxdiff = 0.0;
+                            int arg_reuse = 0;
+                            int arg_ref = 0;
+                            for (int v = 0; v < n_vocab; ++v)
+                            {
+                                const double d = std::fabs(static_cast<double>(reuse_logits[static_cast<std::size_t>(v)])
+                                                           - static_cast<double>(ref[v]));
+                                if (d > maxdiff) maxdiff = d;
+                                if (reuse_logits[static_cast<std::size_t>(v)] > reuse_logits[static_cast<std::size_t>(arg_reuse)]) arg_reuse = v;
+                                if (ref[v] > ref[arg_ref]) arg_ref = v;
+                            }
+                            last_verify_max_diff_ = maxdiff;
+                            std::fprintf(stderr,
+                                "[verify] id=%llu reuse_len=%d maxdiff=%.6g argmax_reuse=%d argmax_ref=%d %s\n",
+                                static_cast<unsigned long long>(req.id), reuse_len, maxdiff,
+                                arg_reuse, arg_ref, (arg_reuse == arg_ref) ? "SAME_ARG" : "DIFF_ARG");
+                        }
+                    }
+                    llama_batch_free(rb);
+                    llama_memory_seq_rm(llama_get_memory(verify_ctx_), 0, -1, -1);
+                }
+            }
+        }
 
         if (rc != 0) 
         {
