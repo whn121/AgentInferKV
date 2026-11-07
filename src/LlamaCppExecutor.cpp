@@ -244,7 +244,7 @@ namespace agentinferkv
         int reuse_len = 0;
         if (chunk_tokens_ > 0 && req.cached_prefix_len > 0)
         {
-            // 至少留 1 个 token 给真实 decode，否则这一次拿不到 logits
+            // 至少留 1 个 token 给真实 decode，否则这一次拿不到 logits。
             const int want = std::min(req.cached_prefix_len, static_cast<int>(tokens.size()) - 1);
             if (want > 0)
             {

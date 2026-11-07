@@ -199,24 +199,38 @@ for i in 1 2 3; do ./build-real/agentinferkv_demo_real ~/models/qwen3-5-4B-Q4_K_
 | 复用关 | yes | 0 | 0 | `0130… c568… 7c97… 7c97… 1524…` |
 
 **问题**：`prompt=415` 时复用 400 token，输出与"完整 prefill"**不一致**（r2 起分叉）。
-而前缀较短（256 token）时两者完全一致。
 
-**结论：`seq_cp` 路径在长前缀下有正确性 bug，当前不能声称任何 TTFT 收益。**
-这个 bug 是"结果悄悄错"的类型，只有靠 digest 逐请求比对才能发现——这也是为什么
-demo 里保留了 `token_digest` 输出。
+### 方法学：先排除"伪不一致"
 
-**待查方向**：
-1. `seq_cp` 之后目标 seq 的 `n_past` 是否真的等于 prefix_len；
-2. RoPE 位置是否从 `prefix_len` 继续（而不是从 0）；
-3. `n_batch=512` 下"零长度后缀"的边界（prompt 415、复用 400 → 后缀仅 15 token）。
+第一次测的时候连"不复用"的两次运行 digest 都不一样——因为 `--sequential` 的 0.6s 间隔小于单请求耗时，
+**batch 组成每次不同**，而 llama.cpp 在不同 batch 下浮点归约顺序不同。这不是复用 bug，是实验方法错。
 
-复现命令：
+加 `--arrival-gap=5`（严格串行，下个请求到达时上个请求一定已完成）后，两次运行的 digest 完全稳定：
+
+| 模式 | 结果 |
+|---|---|
+| 复用开（`--kv-reuse`，reuse_hits=4，1600 token） | `0130… 28fb… 1524… 7c97… 1524…`（两次相同） |
+| 复用关（默认） | `0130… c568… 7c97… 7c97… 1524…`（两次相同） |
+
+**结论：`seq_cp` 路径在长前缀（400 token）下确实改变输出，是真实的一致性 bug，不是测量噪声。**
+目前**该特性默认关闭**，需要时用 `--kv-reuse` 显式打开（会在启动时提示实验性）。
+
+**待查方向**（按可能性排序）：
+1. `seq_cp` 共享 cell 后，目标 seq 在 pos=400..414 写自己的 query token，
+   可能与源 seq 同位置的 cell 冲突（同 prompt 前缀、不同 query）；
+2. `seq_cp` 之后 `n_past`/`seq_add` 的位置集合是否完整；
+3. 统一 KV 下 `seq_cp` 是否要求按 cell 对齐（`chunk_tokens_` 与 `block_size` 都是 16，
+   但 llama.cpp 内部 cell 粒度可能不同）。
+
+复现命令（严格串行）：
 
 ```bash
+# 复用开
 ./build-real/agentinferkv_demo_real ~/models/qwen2.5-0.5b-instruct-q4_k_m.gguf \
-    --sequential --system-repeat=40 --ctx=4096
+    --sequential --arrival-gap=5 --system-repeat=40 --ctx=4096 --kv-reuse
+# 复用关（默认）
 ./build-real/agentinferkv_demo_real ~/models/qwen2.5-0.5b-instruct-q4_k_m.gguf \
-    --sequential --system-repeat=40 --ctx=4096 --no-kv-reuse
+    --sequential --arrival-gap=5 --system-repeat=40 --ctx=4096
 ```
 
 #### 为什么开了 PrefixCache，TTFT 却没有明显下降

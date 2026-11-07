@@ -18,7 +18,7 @@ int main(int argc, char** argv) {
         std::fprintf(stderr, "Usage: %s <model.gguf> [--no-prefix] [--no-kv-reuse] [--sequential]\n"
                              "       [--system-repeat=N] [--ctx=N]\n", argv[0]);
         std::fprintf(stderr, "  --no-prefix    关闭 PrefixCache（控制层不做前缀匹配）\n");
-        std::fprintf(stderr, "  --no-kv-reuse  控制层照常匹配，但执行层不复制 KV\n");
+        std::fprintf(stderr, "  --kv-reuse     开启跨请求 KV 复用（实验性：长前缀下输出可能不一致）\n");
         std::fprintf(stderr, "  --sequential   请求串行到达，batch 组成固定，用于校验采样一致性\n");
         std::fprintf(stderr, "  --system-repeat=N  共享 system prompt 重复段数（默认 6），用来放大前缀长度\n");
         std::fprintf(stderr, "  --ctx=N        上下文长度（默认 2048）\n");
@@ -27,16 +27,23 @@ int main(int argc, char** argv) {
     std::string model_path = argv[1];
 
     bool enable_prefix = true;
-    bool enable_kv_reuse = true;
+    // 跨请求 KV 复用默认关闭：实验四证明 seq_cp 路径在长前缀下与完整 prefill
+    // 输出不一致（README 实验四）。正确性优先，需要时显式 --kv-reuse 打开。
+    bool enable_kv_reuse = false;
     bool sequential = false;
     int system_repeat = 6;
     int n_ctx = 2048;
+    int max_pinned = 3;
+    double arrival_gap = -1.0;   // <0 表示用默认值（sequential 0.6s / 否则 0.05s）
     for (int i = 2; i < argc; ++i) {
         if (std::strcmp(argv[i], "--no-prefix") == 0) enable_prefix = false;
         if (std::strcmp(argv[i], "--no-kv-reuse") == 0) enable_kv_reuse = false;
+        if (std::strcmp(argv[i], "--kv-reuse") == 0) enable_kv_reuse = true;
         if (std::strcmp(argv[i], "--sequential") == 0) sequential = true;
         if (std::strncmp(argv[i], "--system-repeat=", 16) == 0) system_repeat = std::atoi(argv[i] + 16);
         if (std::strncmp(argv[i], "--ctx=", 6) == 0) n_ctx = std::atoi(argv[i] + 6);
+        if (std::strncmp(argv[i], "--max-pinned=", 13) == 0) max_pinned = std::atoi(argv[i] + 13);
+        if (std::strncmp(argv[i], "--arrival-gap=", 14) == 0) arrival_gap = std::atof(argv[i] + 14);
     }
     if (system_repeat < 1) system_repeat = 1;
     if (n_ctx < 256) n_ctx = 256;
@@ -45,7 +52,7 @@ int main(int argc, char** argv) {
     // 之前的写法是"先拍一组默认值(32层/4头/256维)再建模型"，
     // 池容量、每 token KV 字节都会算错，面试一问"这些数字哪来的"就答不上。
     LlamaCppExecutor exec(model_path, 99, n_ctx, 16);
-    exec.SetMaxPinnedSeqs(3);
+    exec.SetMaxPinnedSeqs(static_cast<std::size_t>(max_pinned > 0 ? max_pinned : 1));
 
     ModelConfig config;
     config.num_layers = exec.NumLayers();
@@ -81,7 +88,13 @@ int main(int argc, char** argv) {
         Request r;
         r.id = static_cast<RequestId>(i);
         // sequential：请求不重叠，batch 组成固定，用来严格验证"复用后采样是否一致"
-        r.arrival_time = (sequential ? 0.6 : 0.05) * (i - 1);
+        // arrival_gap 显式给定时以它为准：要验证采样一致性，间隔必须大于单请求耗时，
+        // 否则 batch 组成每次不同，llama.cpp 在不同 batch 下浮点归约顺序不同，
+        // digest 会随机变化（这不是复用 bug，是实验方法问题）。
+        const double gap = (arrival_gap >= 0.0)
+            ? arrival_gap
+            : (sequential ? 0.6 : 0.05);
+        r.arrival_time = gap * (i - 1);
         r.max_new_tokens = 5;
         r.prompt_text = system_prompt + " " + uq;
         r.prompt_tokens = exec.TokenizeText(r.prompt_text);
