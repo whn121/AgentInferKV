@@ -32,21 +32,28 @@ int main(int argc, char** argv) {
         if (std::strcmp(argv[i], "--sequential") == 0) sequential = true;
     }
 
+    // 先加载模型，再按模型的真实形状构造 ModelConfig。
+    // 之前的写法是"先拍一组默认值(32层/4头/256维)再建模型"，
+    // 池容量、每 token KV 字节都会算错，面试一问"这些数字哪来的"就答不上。
+    LlamaCppExecutor exec(model_path, 99, 2048, 16);
+    exec.SetMaxPinnedSeqs(3);
+
     ModelConfig config;
-    config.num_layers = 32;
-    config.num_kv_heads = 4;
-    config.head_dim = 256;
+    config.num_layers = exec.NumLayers();
+    config.num_kv_heads = exec.NumKvHeads();
+    config.head_dim = exec.HeadDim();
     config.dtype_bytes = 2;
     config.block_size = 16;
     config.num_blocks = 64;
 
+    std::printf("model_shape: layers=%d kv_heads=%d head_dim=%d kv_bytes_per_token=%zu pool_tokens=%zu\n",
+                config.num_layers, config.num_kv_heads, config.head_dim,
+                config.KvBytesPerToken(), config.TotalTokenCapacity());
+
+    exec.SetChunkTokens(enable_kv_reuse ? config.block_size : 0);
+
     FCFSScheduler sched;
     PagedBlockManager mgr(config);
-    // n_seq_max 要给"被钉住的前缀源 seq"留余量
-    LlamaCppExecutor exec(model_path, 99, 2048, 16);
-    exec.SetChunkTokens(enable_kv_reuse ? config.block_size : 0);
-    exec.SetMaxPinnedSeqs(3);
-
     PrefixCache cache(&mgr, 0);
     SimulationLoop loop(config, sched, mgr, exec, enable_prefix ? &cache : nullptr);
 

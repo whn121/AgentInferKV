@@ -1,0 +1,1 @@
+/usr/bin/c++ -O3 -DNDEBUG CMakeFiles/agentinferkv_demo.dir/src/main.cpp.o -o agentinferkv_demo  libagentinferkv_core.a 

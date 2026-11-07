@@ -1,0 +1,2 @@
+/usr/bin/ar qc libagentinferkv_core.a CMakeFiles/agentinferkv_core.dir/src/Request.cpp.o CMakeFiles/agentinferkv_core.dir/src/FCFSScheduler.cpp.o CMakeFiles/agentinferkv_core.dir/src/NaivePreallocator.cpp.o CMakeFiles/agentinferkv_core.dir/src/TraceReplayer.cpp.o CMakeFiles/agentinferkv_core.dir/src/SimulatedExecutor.cpp.o CMakeFiles/agentinferkv_core.dir/src/SimulationLoop.cpp.o CMakeFiles/agentinferkv_core.dir/src/PagedBlockManager.cpp.o CMakeFiles/agentinferkv_core.dir/src/PrefixCache.cpp.o
+/usr/bin/ranlib libagentinferkv_core.a

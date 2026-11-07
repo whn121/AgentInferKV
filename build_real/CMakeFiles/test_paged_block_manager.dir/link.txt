@@ -1,0 +1,1 @@
+/usr/bin/c++ -O3 -DNDEBUG CMakeFiles/test_paged_block_manager.dir/tests/test_paged_block_manager.cpp.o -o test_paged_block_manager  libagentinferkv_core.a 

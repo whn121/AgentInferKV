@@ -23,6 +23,16 @@ namespace agentinferkv
             throw std::runtime_error("LlamaCppExecutor: failed to load model: " + model_path);
         }
 
+        // 读出模型真实形状：ModelConfig 必须与它对齐，否则容量估算全错。
+        num_layers_ = static_cast<int>(llama_model_n_layer(model_));
+        num_kv_heads_ = static_cast<int>(llama_model_n_head_kv(model_));
+        const int n_embd = static_cast<int>(llama_model_n_embd(model_));
+        const int n_head = static_cast<int>(llama_model_n_head(model_));
+        head_dim_ = (n_head > 0) ? (n_embd / n_head) : 0;
+        std::fprintf(stderr,
+            "[LlamaCppExecutor] model shape: layers=%d kv_heads=%d head_dim=%d (n_embd=%d n_head=%d)\n",
+            num_layers_, num_kv_heads_, head_dim_, n_embd, n_head);
+
         // 判断这个模型能不能做"按位置部分复制 KV"。
         // hybrid / recurrent 模型的循环状态是整段历史的摘要，不能按 position 截取，
         // 硬做会得到错误的 KV（实测 Qwen3.5-4B 上 greedy 采样结果会变）。

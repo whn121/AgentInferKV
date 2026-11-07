@@ -161,15 +161,20 @@ Prefill 已经把 GPU 预热（CUDA graph、显存分配、权重驻留），所
 **环境**：RTX 4060 Laptop 8GB + WSL2 + CUDA，Qwen3.5-4B Q4_K_M（`qwen35` 架构，hybrid），
 5 个请求、50ms 到达间隔、`max_new_tokens=5`、prompt 75 token（6 段重复的 system prompt + user query）。
 
-| 运行 | avg TTFT | max_concurrent | total_generated | eos_early |
-|---|---|---|---|---|
-| run1 | 49.7 ms | 2 | 25 | 0/5 |
-| run2 | 50.3 ms | 2 | 25 | 0/5 |
-| run3 | 48.1 ms | 2 | 25 | 0/5 |
+**模型形状已改为从模型读**（原先是写死的 32 层 / 4 头 / **256** 维）：实际是
+`layers=32, kv_heads=4, head_dim=160`（`n_embd=2560, n_head=16`）。因此每 token KV 是
+`2×32×4×160×2 = 80 KB`（不是 128 KB），`num_blocks=64` 的池子是 1024 token。
+`main_real` 现在先 `llama_model_load` 再填 `ModelConfig`，并打印 `model_shape:` 供核对。
 
-> 复跑会有波动：另一次连跑三遍是 53.5 / 46.8 / 48.9 ms，`max_concurrent` 出现过 3。
-> 原因是 50ms 到达间隔与 GPU 完成时刻的相对位置每次不同，属于真实环境噪声，
-> 不要拿单次数字做过细的对比。
+| 运行 | avg TTFT | max_concurrent | total_generated | eos_early | token_digest |
+|---|---|---|---|---|---|
+| run1 | 27.5 ms | 2 | 25 | 0/5 | 五次请求全相同 |
+| run2 | 25.2 ms | 2 | 25 | 0/5 | 同上 |
+| run3 | 21.1 ms | 2 | 25 | 0/5 | 同上 |
+
+> 三次 `token_digest` 完全一致（`1bd782e9460be1ea`），说明 greedy + 固定 batch 组成下
+> **结果可复现**，这是后续做"KV 复用前后结果一致性"对比的前提。
+> `kv_reuse_supported=no`：Qwen3.5 是 hybrid，`reuse_hits=0`，PrefixCache 只在控制面命中（3/5）。
 
 复现命令：
 

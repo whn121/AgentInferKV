@@ -1,0 +1,1 @@
+/usr/bin/c++ -O3 -DNDEBUG CMakeFiles/test_fcfs_scheduler.dir/tests/test_fcfs_scheduler.cpp.o -o test_fcfs_scheduler  libagentinferkv_core.a 

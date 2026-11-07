@@ -1,0 +1,1 @@
+/usr/bin/c++ -O3 -DNDEBUG CMakeFiles/test_model_config.dir/tests/test_model_config.cpp.o -o test_model_config  libagentinferkv_core.a 

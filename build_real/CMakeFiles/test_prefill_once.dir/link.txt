@@ -1,0 +1,1 @@
+/usr/bin/c++ -O3 -DNDEBUG CMakeFiles/test_prefill_once.dir/tests/test_prefill_once.cpp.o -o test_prefill_once  libagentinferkv_core.a 

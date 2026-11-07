@@ -1,0 +1,1 @@
+/usr/bin/c++ -O3 -DNDEBUG CMakeFiles/test_simulated_executor.dir/tests/test_simulated_executor.cpp.o -o test_simulated_executor  libagentinferkv_core.a 

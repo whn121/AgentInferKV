@@ -1,0 +1,1 @@
+/usr/bin/c++ -O3 -DNDEBUG CMakeFiles/test_prefix_sharing.dir/tests/test_prefix_sharing.cpp.o -o test_prefix_sharing  libagentinferkv_core.a 

@@ -1,0 +1,1 @@
+/usr/bin/c++ -O3 -DNDEBUG CMakeFiles/agentinferkv_demo_real.dir/src/main_real.cpp.o -o agentinferkv_demo_real   -L/home/whn/src/llama.cpp/build/bin  -Wl,-rpath,/home/whn/src/llama.cpp/build/bin libagentinferkv_llama.a libagentinferkv_core.a -lllama -lggml -lggml-base -lggml-cpu -lggml-cuda 

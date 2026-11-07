@@ -60,6 +60,14 @@ namespace agentinferkv
         // 对整段历史的摘要，不能按 position 区间截取，所以这类模型上关闭复用。
         bool KvReuseSupported() const { return kv_reuse_supported_; }
 
+        // ── 模型真实形状 ──
+        // ModelConfig 里的层数/头数/head_dim 必须来自模型本身，不能拍默认值，
+        // 否则"每 token KV 字节""池子能放多少 token"全是错的。
+        // main_real 用这三个值覆盖 ModelConfig。
+        int NumLayers() const { return num_layers_; }
+        int NumKvHeads() const { return num_kv_heads_; }
+        int HeadDim() const { return head_dim_; }
+
         // 每个请求生成过的 token id。用来验证"开了 KV 复用之后 greedy 采样结果不变"。
         // Release 不清这里，方便跑完后对比。
         const std::vector<int32_t>* GeneratedIds(RequestId id) const
@@ -92,6 +100,11 @@ namespace agentinferkv
 
         // 跨请求 KV 复用的状态
         bool kv_reuse_supported_ = false;
+
+        // 模型真实形状（构造时从 llama_model 读，供 ModelConfig 对齐）
+        int num_layers_ = 0;
+        int num_kv_heads_ = 0;
+        int head_dim_ = 0;
         int chunk_tokens_ = 16;
         std::size_t max_pinned_ = 3;
         std::uint64_t touch_clock_ = 0;

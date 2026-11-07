@@ -1,0 +1,2 @@
+/usr/bin/ar qc libagentinferkv_llama.a CMakeFiles/agentinferkv_llama.dir/src/LlamaCppExecutor.cpp.o
+/usr/bin/ranlib libagentinferkv_llama.a
