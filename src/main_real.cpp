@@ -15,10 +15,13 @@ using namespace agentinferkv;
 
 int main(int argc, char** argv) {
     if (argc < 2) {
-        std::fprintf(stderr, "Usage: %s <model.gguf> [--no-prefix] [--no-kv-reuse] [--sequential]\n", argv[0]);
+        std::fprintf(stderr, "Usage: %s <model.gguf> [--no-prefix] [--no-kv-reuse] [--sequential]\n"
+                             "       [--system-repeat=N] [--ctx=N]\n", argv[0]);
         std::fprintf(stderr, "  --no-prefix    关闭 PrefixCache（控制层不做前缀匹配）\n");
         std::fprintf(stderr, "  --no-kv-reuse  控制层照常匹配，但执行层不复制 KV\n");
         std::fprintf(stderr, "  --sequential   请求串行到达，batch 组成固定，用于校验采样一致性\n");
+        std::fprintf(stderr, "  --system-repeat=N  共享 system prompt 重复段数（默认 6），用来放大前缀长度\n");
+        std::fprintf(stderr, "  --ctx=N        上下文长度（默认 2048）\n");
         return 1;
     }
     std::string model_path = argv[1];
@@ -26,16 +29,22 @@ int main(int argc, char** argv) {
     bool enable_prefix = true;
     bool enable_kv_reuse = true;
     bool sequential = false;
+    int system_repeat = 6;
+    int n_ctx = 2048;
     for (int i = 2; i < argc; ++i) {
         if (std::strcmp(argv[i], "--no-prefix") == 0) enable_prefix = false;
         if (std::strcmp(argv[i], "--no-kv-reuse") == 0) enable_kv_reuse = false;
         if (std::strcmp(argv[i], "--sequential") == 0) sequential = true;
+        if (std::strncmp(argv[i], "--system-repeat=", 16) == 0) system_repeat = std::atoi(argv[i] + 16);
+        if (std::strncmp(argv[i], "--ctx=", 6) == 0) n_ctx = std::atoi(argv[i] + 6);
     }
+    if (system_repeat < 1) system_repeat = 1;
+    if (n_ctx < 256) n_ctx = 256;
 
     // 先加载模型，再按模型的真实形状构造 ModelConfig。
     // 之前的写法是"先拍一组默认值(32层/4头/256维)再建模型"，
     // 池容量、每 token KV 字节都会算错，面试一问"这些数字哪来的"就答不上。
-    LlamaCppExecutor exec(model_path, 99, 2048, 16);
+    LlamaCppExecutor exec(model_path, 99, n_ctx, 16);
     exec.SetMaxPinnedSeqs(3);
 
     ModelConfig config;
@@ -60,7 +69,7 @@ int main(int argc, char** argv) {
     // Agent 场景的典型特征：一长段共享 system prompt + 每轮不同的 user query。
     // 这里重复到约 80~100 token，才能让"前缀复用"真正省下可观的工作量。
     std::string system_prompt;
-    for (int k = 0; k < 6; ++k) {
+    for (int k = 0; k < system_repeat; ++k) {
         system_prompt += "You are a careful assistant for retrieval augmented generation. ";
     }
 

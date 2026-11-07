@@ -184,6 +184,41 @@ cmake --build build-real -j 4
 for i in 1 2 3; do ./build-real/agentinferkv_demo_real ~/models/qwen3-5-4B-Q4_K_M.gguf; done
 ```
 
+### 实验 4：dense 模型上的真实 KV 复用验证（**发现 bug，暂不可用**）
+
+上面实验 3 的模型是 hybrid，复用被禁用，验不出东西。换 dense 模型
+（Qwen2.5-0.5B-Instruct Q4_K_M，24 层 / 2 KV head / head_dim 64 / 12 KB per token）
+才能让 `llama_memory_seq_cp` 真正跑起来。
+
+用 `--sequential --system-repeat=40 --ctx=4096` 把共享前缀拉长（prompt 415 token，
+其中 400 token 命中缓存），跑复用开/关对照：
+
+| 模式 | kv_reuse_supported | reuse_hits | reused_tokens | 5 个请求的 token_digest |
+|---|---|---|---|---|
+| 复用开 | yes | 4 | 1600（4×400） | `0130… 28fb… 1524… 7c97… 1524…` |
+| 复用关 | yes | 0 | 0 | `0130… c568… 7c97… 7c97… 1524…` |
+
+**问题**：`prompt=415` 时复用 400 token，输出与"完整 prefill"**不一致**（r2 起分叉）。
+而前缀较短（256 token）时两者完全一致。
+
+**结论：`seq_cp` 路径在长前缀下有正确性 bug，当前不能声称任何 TTFT 收益。**
+这个 bug 是"结果悄悄错"的类型，只有靠 digest 逐请求比对才能发现——这也是为什么
+demo 里保留了 `token_digest` 输出。
+
+**待查方向**：
+1. `seq_cp` 之后目标 seq 的 `n_past` 是否真的等于 prefix_len；
+2. RoPE 位置是否从 `prefix_len` 继续（而不是从 0）；
+3. `n_batch=512` 下"零长度后缀"的边界（prompt 415、复用 400 → 后缀仅 15 token）。
+
+复现命令：
+
+```bash
+./build-real/agentinferkv_demo_real ~/models/qwen2.5-0.5b-instruct-q4_k_m.gguf \
+    --sequential --system-repeat=40 --ctx=4096
+./build-real/agentinferkv_demo_real ~/models/qwen2.5-0.5b-instruct-q4_k_m.gguf \
+    --sequential --system-repeat=40 --ctx=4096 --no-kv-reuse
+```
+
 #### 为什么开了 PrefixCache，TTFT 却没有明显下降
 
 控制层确实命中了（`hits=3/5`，`cached_tokens=192`），但**执行层没有复用 KV**：这个模型是
