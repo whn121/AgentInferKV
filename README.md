@@ -170,6 +170,31 @@ LRU）→ 如果 llama.cpp 和模型都在，跑实验 3（真实 GPU，3 次取
    已实现 **chunked prefill**：按 512 分块逐块 decode，只有最后一块取 logits；
    实测 715 token 的 prompt 正常跑完（修复前直接 abort）。
 
+### 实验 5：真实 trace（100 请求）——"控制面命中 ≠ 执行面省算"
+
+**trace 定义**（可复现，`--seed=42`）：
+- 100 个请求，system prompt 长度分布 50/30/20（约 80/160/320 token 档位）；
+- 每个请求 `max_new=16`，到达间隔 50ms，总数 100；
+- 要求模型"用二十个词描述"，**避免一句话就 EOS**（第一版用"某国首都是哪"，
+  20 次里 13 次在 prefill 阶段就结束，根本不产生 TTFT 样本——这是实验方法问题，不是代码问题）。
+
+**三组对比**（RTX 4060 Laptop / Qwen2.5-0.5B / ctx=8192 / n_seq=4）：
+
+| 配置 | 完成 | p50 TTFT | avg TTFT | p95 TTFT | 复用 token |
+|---|---|---|---|---|---|
+| C 基线：prefix 关、kv_reuse 关 | 100/100 | 8.1 ms | 10.0 ms | 17.0 ms | 0 |
+| A 控制面命中：prefix 开、kv_reuse 关 | 100/100 | 8.6 ms | 10.6 ms | 14.3 ms | 0 |
+| B 执行面打通：prefix 开 + `--kv-reuse` | 100/100 | **6.3 ms** | **8.7 ms** | 15.6 ms | **47040** |
+
+**怎么读（这才是这个实验的价值）**：
+1. **A 组命中率 98%、命中 47040 token，但 TTFT 没有改善**——因为 `LlamaCppExecutor::Prefill`
+   只认执行面的 `seq_cp` 复用，不读控制面的 `cached_prefix_len`。控制面命中只是账目，
+   **执行面照样全量 prefill**。这正是"控制面与执行面半解耦"的实证。
+2. **B 组把 `seq_cp` 打通后才有真实收益**：p50 8.1→6.3 ms（-22%），avg 10.0→8.7 ms（-13%）。
+3. **p95 不能声称改善**：三组在 14.3~17.0 ms 之间波动，100 个样本在共享 GPU 上噪声太大。
+4. B 组是 `--kv-reuse`（实验性）：输出可能因 batch 形状不同而 greedy 翻转（见实验 4），
+   所以这里只报延迟、不报正确性。
+
 ### 实验 2：PrefixCache 与 LRU
 
 Agent 多轮场景：System Prompt 32 token + User Query 16 token，5 个请求，相同 System Prompt，
