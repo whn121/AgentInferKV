@@ -99,6 +99,10 @@ if(USE_LLAMA_CPP)
   add_executable(agentinferkv_demo_real src/main_real.cpp)
   target_link_libraries(agentinferkv_demo_real PRIVATE agentinferkv_llama)
 
+  # 标定工具：真实 GPU 上测 Prefill/Decode 耗时，供 SimulatedExecutor 拟合
+  add_executable(agentinferkv_calibrate tools/calibrate_executor.cpp)
+  target_link_libraries(agentinferkv_calibrate PRIVATE agentinferkv_llama)
+
   # 让运行时自动找到 .so，不用手动 LD_LIBRARY_PATH
   set_target_properties(agentinferkv_demo_real PROPERTIES
     BUILD_RPATH   "${LLAMA_ROOT}/build/bin"

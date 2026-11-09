@@ -4,14 +4,33 @@
 
 namespace agentinferkv
 {
-    // 模拟执行器的耗时参数。
-    // 单位：秒。默认值对应“长 prompt Prefill 明显更慢、Decode 每步接近固定”的定性模型
+    // 模拟执行器的耗时参数。单位：秒。
+    //
+    // ── 这些系数不是拍脑袋的 ──
+    // 由 tools/calibrate_executor.cpp 在真实 GPU 上实测后拟合而来：
+    //   硬件：RTX 4060 Laptop 8GB（WSL2）
+    //   方法：prompt 长度 11/41/81/161/321 token，每个长度 9 次取中位数，
+    //         再对 (tokens, prefill_ms) 做最小二乘拟合
+    //   拟合：tools/fit_executor_config.py
+    //
+    // 模型 A：Qwen2.5-0.5B-Instruct Q4_K_M（dense，默认值取自它）
+    //   prefill = 5.63 ms + 3.09 µs/token      (R² = 0.33，固定开销主导)
+    //   decode  = 0.63 ms/token                (与上下文长度基本无关)
+    //
+    // 模型 B：Qwen3.5-4B Q4_K_M（hybrid）
+    //   prefill = 12.47 ms + 31.72 µs/token    (R² = 0.91，线性很好)
+    //   decode  = 1.10 ms/token
+    //   想用这组：ExecutorConfig{0.012466, 0.000031718, 0.001101, 0.0}
+    //
+    // 诚实边界：R²=0.33 说明 0.5B 上 prefill 主要是固定开销（kernel launch 等），
+    // 线性项在噪声范围内；4B 上线性项才是主导。模拟器只用于比较**策略**，
+    // 不代表任意硬件上的绝对延迟。
     struct ExecutorConfig
     {
-        double base_prefill_s = 0.005;         // Prefill 固定开销
-        double per_token_prefill_s = 0.00001;  // 每个 prompt token 的额外耗时
-        double base_decode_s = 0.0005;         // Decode 一步的固定开销
-        double per_token_decode_s = 0.00002;   // 每个生成 token 的额外耗时
+        double base_prefill_s = 0.005634;         // 5.63 ms（0.5B 实测拟合）
+        double per_token_prefill_s = 0.000003094; // 3.09 µs/token
+        double base_decode_s = 0.000633;          // 0.63 ms/token
+        double per_token_decode_s = 0.0;          // 实测 decode 与长度无关，故为 0
     };
     
     // 模拟执行器：用公式返回耗时，不提交 GPU 任务

@@ -14,6 +14,7 @@
 /home/whn/AgentInferKV/build_real/CMakeFiles/test_lru_eviction.dir
 /home/whn/AgentInferKV/build_real/CMakeFiles/agentinferkv_llama.dir
 /home/whn/AgentInferKV/build_real/CMakeFiles/agentinferkv_demo_real.dir
+/home/whn/AgentInferKV/build_real/CMakeFiles/agentinferkv_calibrate.dir
 /home/whn/AgentInferKV/build_real/CMakeFiles/test.dir
 /home/whn/AgentInferKV/build_real/CMakeFiles/edit_cache.dir
 /home/whn/AgentInferKV/build_real/CMakeFiles/rebuild_cache.dir

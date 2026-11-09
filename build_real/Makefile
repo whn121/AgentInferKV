@@ -334,6 +334,19 @@ agentinferkv_demo_real/fast:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/agentinferkv_demo_real.dir/build.make CMakeFiles/agentinferkv_demo_real.dir/build
 .PHONY : agentinferkv_demo_real/fast
 
+#=============================================================================
+# Target rules for targets named agentinferkv_calibrate
+
+# Build rule for target.
+agentinferkv_calibrate: cmake_check_build_system
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 agentinferkv_calibrate
+.PHONY : agentinferkv_calibrate
+
+# fast build rule for target.
+agentinferkv_calibrate/fast:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/agentinferkv_calibrate.dir/build.make CMakeFiles/agentinferkv_calibrate.dir/build
+.PHONY : agentinferkv_calibrate/fast
+
 src/FCFSScheduler.o: src/FCFSScheduler.cpp.o
 .PHONY : src/FCFSScheduler.o
 
@@ -886,6 +899,30 @@ tests/test_simulation_loop.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/test_simulation_loop.dir/build.make CMakeFiles/test_simulation_loop.dir/tests/test_simulation_loop.cpp.s
 .PHONY : tests/test_simulation_loop.cpp.s
 
+tools/calibrate_executor.o: tools/calibrate_executor.cpp.o
+.PHONY : tools/calibrate_executor.o
+
+# target to build an object file
+tools/calibrate_executor.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/agentinferkv_calibrate.dir/build.make CMakeFiles/agentinferkv_calibrate.dir/tools/calibrate_executor.cpp.o
+.PHONY : tools/calibrate_executor.cpp.o
+
+tools/calibrate_executor.i: tools/calibrate_executor.cpp.i
+.PHONY : tools/calibrate_executor.i
+
+# target to preprocess a source file
+tools/calibrate_executor.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/agentinferkv_calibrate.dir/build.make CMakeFiles/agentinferkv_calibrate.dir/tools/calibrate_executor.cpp.i
+.PHONY : tools/calibrate_executor.cpp.i
+
+tools/calibrate_executor.s: tools/calibrate_executor.cpp.s
+.PHONY : tools/calibrate_executor.s
+
+# target to generate assembly for a file
+tools/calibrate_executor.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/agentinferkv_calibrate.dir/build.make CMakeFiles/agentinferkv_calibrate.dir/tools/calibrate_executor.cpp.s
+.PHONY : tools/calibrate_executor.cpp.s
+
 # Help Target
 help:
 	@echo "The following are some of the valid targets for this Makefile:"
@@ -895,6 +932,7 @@ help:
 	@echo "... edit_cache"
 	@echo "... rebuild_cache"
 	@echo "... test"
+	@echo "... agentinferkv_calibrate"
 	@echo "... agentinferkv_core"
 	@echo "... agentinferkv_demo"
 	@echo "... agentinferkv_demo_real"
@@ -980,6 +1018,9 @@ help:
 	@echo "... tests/test_simulation_loop.o"
 	@echo "... tests/test_simulation_loop.i"
 	@echo "... tests/test_simulation_loop.s"
+	@echo "... tools/calibrate_executor.o"
+	@echo "... tools/calibrate_executor.i"
+	@echo "... tools/calibrate_executor.s"
 .PHONY : help
 
 

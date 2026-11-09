@@ -109,11 +109,11 @@ namespace
 
 int main()
 {
+    // 用 SimulatedExecutor 的默认系数：它们来自真实 GPU 实测拟合
+    // （RTX 4060 + Qwen2.5-0.5B，见 include/SimulatedExecutor.h 与 tools/calibrate_executor.cpp）。
+    // 早期这里手写过 0.001/0.0001/0.0005/0.00002 一组"定性"系数，
+    // 结果和真实测量对不上，等于两套数字打架——已删除。
     ExecutorConfig exec_cfg;
-    exec_cfg.base_prefill_s = 0.001;
-    exec_cfg.per_token_prefill_s = 0.0001;
-    exec_cfg.base_decode_s = 0.0005;
-    exec_cfg.per_token_decode_s = 0.00002;
 
     // 6 个请求同时到达：prompt 20 + 最多生成 30 → 总 50 token
     // Naive 每请求预分配 ceil(50/16)=4 块；Paged 先分 ceil(20/16)=2 块，Decode 再扩
