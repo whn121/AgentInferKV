@@ -274,10 +274,51 @@ namespace agentinferkv
 
         const int32_t n_new = static_cast<int32_t>(tokens.size()) - reuse_len;
 
-        // 关键修复：用 llama_batch_init 而不是 llama_batch_get_one
-        // llama_batch_get_one 固定 seq_id=0，会覆盖其他请求的 KV
-        llama_batch batch = llama_batch_init(n_new, 0, 1);
-        if (batch.token == nullptr)
+        // ── 分块 prefill（chunked prefill）──
+        // llama_context 的 n_batch 上限是 512（见构造函数），一次塞超过 n_batch 个 token
+        // 会 GGML_ASSERT abort。这里按 512 分块逐块 decode，只有最后一块的最后一个
+        // token 需要 logits（用于采样首 token）。
+        static constexpr int32_t kPrefillChunkTokens = 512;
+        int rc = 0;
+        double elapsed_s = 0.0;
+        int32_t last_logits_index = 0;   // 最后一块里 logits 的 batch 内下标
+        bool alloc_failed = false;
+
+        for (int32_t off = 0; off < n_new && rc == 0; off += kPrefillChunkTokens)
+        {
+            const int32_t m = std::min<int32_t>(kPrefillChunkTokens, n_new - off);
+
+            // 关键修复：用 llama_batch_init 而不是 llama_batch_get_one
+            // llama_batch_get_one 固定 seq_id=0，会覆盖其他请求的 KV
+            llama_batch batch = llama_batch_init(m, 0, 1);
+            if (batch.token == nullptr)
+            {
+                alloc_failed = true;
+                rc = -2;
+                break;
+            }
+
+            for (int32_t i = 0; i < m; ++i)
+            {
+                const int32_t pos = reuse_len + off + i;
+                batch.token[i] = tokens[static_cast<std::size_t>(pos)];
+                batch.pos[i] = static_cast<llama_pos>(pos);
+                batch.n_seq_id[i] = 1;
+                batch.seq_id[i][0] = static_cast<llama_seq_id>(seq_id);
+                batch.logits[i] = (off + i == n_new - 1) ? 1 : 0;
+            }
+            batch.n_tokens = m;
+
+            const auto t0 = std::chrono::steady_clock::now();
+            rc = llama_decode(ctx_, batch);
+            const auto t1 = std::chrono::steady_clock::now();
+            elapsed_s += std::chrono::duration<double>(t1 - t0).count();
+
+            last_logits_index = m - 1;
+            llama_batch_free(batch);
+        }
+
+        if (alloc_failed)
         {
             // 分配失败必须返回负值，否则调用方会当成“瞬间完成”，completed 计数不可信
             seq_owner_.erase(seq_id);
@@ -285,21 +326,6 @@ namespace agentinferkv
             seq_map_.erase(req.id);
             return -1.0;
         }
-
-        for (int32_t i = 0; i < n_new; ++i) 
-        {
-            const std::size_t src = static_cast<std::size_t>(reuse_len + i);
-            batch.token[i] = tokens[src];
-            batch.pos[i] = static_cast<llama_pos>(reuse_len + i);
-            batch.n_seq_id[i] = 1;
-            batch.seq_id[i][0] = static_cast<llama_seq_id>(seq_id);
-            batch.logits[i] = (i == n_new - 1) ? 1 : 0;
-        }
-        batch.n_tokens = n_new;
-
-        auto t0 = std::chrono::steady_clock::now();
-        int rc = llama_decode(ctx_, batch);
-        auto t1 = std::chrono::steady_clock::now();
 
         // ── 复用一致性诊断 ──
         // 在独立 context 里对同一段 prompt 做完整 prefill，比较最后位置的 logits。
@@ -310,7 +336,7 @@ namespace agentinferkv
             const int n_vocab = llama_vocab_n_tokens(llama_model_get_vocab(model_));
 
             std::vector<float> reuse_logits(static_cast<std::size_t>(n_vocab));
-            const float* got = llama_get_logits_ith(ctx_, n_new - 1);
+            const float* got = llama_get_logits_ith(ctx_, last_logits_index);
             if (got != nullptr)
             {
                 std::copy(got, got + n_vocab, reuse_logits.begin());
@@ -375,13 +401,12 @@ namespace agentinferkv
             seq_owner_.erase(seq_id);
             free_seq_ids_.push_back(seq_id);
             seq_map_.erase(req.id);
-            llama_batch_free(batch);
             n_past_[req.id] = 0;
             return -1.0;
         }
 
         // 从最后一个位置采样首 token
-        llama_token first = llama_sampler_sample(sampler_, ctx_, batch.n_tokens - 1);
+        llama_token first = llama_sampler_sample(sampler_, ctx_, last_logits_index);
         pending_tokens_[req.id] = first;
         generated_ids_[req.id].push_back(static_cast<int32_t>(first));
 
@@ -396,8 +421,7 @@ namespace agentinferkv
         // 把本次 prompt 的 block 对齐前缀登记为可复用源，供后续请求 seq_cp
         RegisterPrefixes(seq_id, tokens);
 
-        llama_batch_free(batch);
-        return std::chrono::duration<double>(t1 - t0).count();
+        return elapsed_s;
     }
 
     double LlamaCppExecutor::Decode(const Request& req, const BlockTableView& view) 

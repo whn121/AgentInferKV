@@ -68,6 +68,7 @@ flowchart TD
   但 hybrid / recurrent 模型的循环状态是整段历史的摘要，无法按 position 区间截取，
   代码会在启动时用 `llama_model_is_hybrid/is_recurrent` 检测并禁用（本机 Qwen3.5-4B
   就是这种情况）。**dense 模型上的收益未实测，README 不编数字。**
+- **chunked prefill**：长 prompt 按 512 token 分块 decode（修复 >512 直接 abort 的问题）。
 - **不支持抢占（preemption）/ KV swap**：块不足时用背压和取消替代。这也是实验1里
   Paged 完成率下降的直接原因。
 - **不支持多模型 / 多 tokenizer**：PrefixCache 只有一棵树，没有 `model_id` 维度。
@@ -164,9 +165,10 @@ LRU）→ 如果 llama.cpp 和模型都在，跑实验 3（真实 GPU，3 次取
 **诚实边界**：
 1. 这些数字是"RTX 4060 Laptop + 该 gguf"的，不能外推到别的硬件；
 2. 模拟器只用于比较**策略**（分页 vs 预留），不用于声称 GPU 性能；
-3. 标定时发现：`Prefill` 一次最多只能处理 `n_batch = 512` 个 token，
-   超过会 `GGML_ASSERT` abort（实验里 prompt 是 415，刚好没踩到）。这是已知限制，
-   修法是 chunked prefill，尚未实现。
+3. 标定时发现过一个真 bug：`Prefill` 原来把整个 prompt 塞进**一个** batch，
+   而 `n_batch = 512`，超过就 `GGML_ASSERT` abort（实验里 prompt 是 415，刚好躲过）。
+   已实现 **chunked prefill**：按 512 分块逐块 decode，只有最后一块取 logits；
+   实测 715 token 的 prompt 正常跑完（修复前直接 abort）。
 
 ### 实验 2：PrefixCache 与 LRU
 
