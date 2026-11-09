@@ -507,6 +507,13 @@ namespace agentinferkv
 
     void LlamaCppExecutor::Release(RequestId id) 
     {
+        // 快照实际 KV token 数：Release 之后 n_past_ 会被清空，
+        // 控制面要拿这个数和自己的块账目对比（账目对齐校验）。
+        {
+            auto np = n_past_.find(id);
+            if (np != n_past_.end()) kv_tokens_final_[id] = np->second;
+        }
+
         auto it = seq_map_.find(id);
         if (it == seq_map_.end()) return;
         int seq_id = it->second;

@@ -51,6 +51,19 @@ namespace agentinferkv
         void SetMaxPinnedSeqs(std::size_t n) { max_pinned_ = n; }
 
         int ReusedPrefixTokens() const { return reused_prefix_tokens_; }
+
+        // 执行面实际为这个请求保留了多少 token 的 KV（= n_past_）。
+        // 控制面用它校验自己的块账目：块数 × block_size 应该覆盖这个数。
+        int KvTokens(RequestId id) const
+        {
+            // Release 之后 n_past_ 会被清掉，所以优先查终态快照，
+            // 否则实验结束后读到的永远是 0（第一次就是这么踩坑的）。
+            auto fin = kv_tokens_final_.find(id);
+            if (fin != kv_tokens_final_.end()) return fin->second;
+
+            auto it = n_past_.find(id);
+            return it == n_past_.end() ? 0 : it->second;
+        }
         int ReuseHits() const { return reuse_hits_; }
         std::size_t PinnedSeqs() const { return pinned_.size(); }
         int EvictedPinnedSeqs() const { return evicted_pinned_; }
@@ -136,6 +149,8 @@ namespace agentinferkv
 
         // RequestId -> 生成的 token 序列（只用于结果校验，Release 不清）
         std::unordered_map<RequestId, std::vector<int32_t>> generated_ids_;
+        // Release 时快照 n_past_，供账目对齐校验（Release 会清 n_past_）
+        std::unordered_map<RequestId, int> kv_tokens_final_;
 
         std::vector<int> Tokenize(const std::string& text) const;
         int AcquireSeqId();

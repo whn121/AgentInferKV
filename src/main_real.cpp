@@ -29,6 +29,7 @@ int main(int argc, char** argv) {
         std::fprintf(stderr, "  --prompt-mix=A/B/C  短/中/长 system prompt 百分比（默认 50/30/20）\n");
         std::fprintf(stderr, "  --seed=S       随机种子（默认 42，保证 trace 可复现）\n");
         std::fprintf(stderr, "  --max-new=N    每个请求最多生成 token（默认 5）\n");
+        std::fprintf(stderr, "  --no-reuse     关闭执行面 seq_cp 复用（基线对照用）\n");
         std::fprintf(stderr, "  --n-seq=N      并发 seq 上限（默认 16；统一 KV 下每 seq 可用 ctx/N）\n");
         std::fprintf(stderr, "  --blocks=N     KV 块池大小（默认 64，每块 16 token）\n");
         return 1;
@@ -45,6 +46,7 @@ int main(int argc, char** argv) {
     int max_pinned = 3;
     double arrival_gap = -1.0;   // <0 表示用默认值（sequential 0.6s / 否则 0.05s）
     bool verify_reuse = false;
+    bool reuse_disabled = false;
     int reuse_margin = 0;
     int num_requests = 5;
     int mix_short = 50, mix_mid = 30, mix_long = 20;
@@ -62,6 +64,7 @@ int main(int argc, char** argv) {
         if (std::strncmp(argv[i], "--max-pinned=", 13) == 0) max_pinned = std::atoi(argv[i] + 13);
         if (std::strncmp(argv[i], "--arrival-gap=", 14) == 0) arrival_gap = std::atof(argv[i] + 14);
         if (std::strcmp(argv[i], "--verify-reuse") == 0) verify_reuse = true;
+        if (std::strcmp(argv[i], "--no-reuse") == 0) reuse_disabled = true;
         if (std::strncmp(argv[i], "--reuse-margin=", 15) == 0) reuse_margin = std::atoi(argv[i] + 15);
         if (std::strncmp(argv[i], "--num-requests=", 15) == 0) num_requests = std::atoi(argv[i] + 15);
         if (std::strncmp(argv[i], "--seed=", 7) == 0) seed = std::atol(argv[i] + 7);
@@ -99,7 +102,13 @@ int main(int argc, char** argv) {
                 config.num_layers, config.num_kv_heads, config.head_dim,
                 config.KvBytesPerToken(), config.TotalTokenCapacity());
 
-    exec.SetChunkTokens(enable_kv_reuse ? config.block_size : 0);
+    // ── C：复用由"控制面命中"驱动，而不是由 --kv-reuse 单独决定 ──
+    // 早期默认关闭是为了输出逐位一致；但实验 5 证明：控制面命中 98% 而执行面不打通，
+    // TTFT 一点不降。所以 dense 模型默认让控制面命中直接驱动 seq_cp，
+    // hybrid/recurrent 由执行面自动禁用（循环状态不能按位置切）。
+    // --no-reuse 保留给"基线对照"实验。
+    const bool reuse_enabled = exec.KvReuseSupported() && enable_prefix && !reuse_disabled;
+    exec.SetChunkTokens(reuse_enabled ? config.block_size : 0);
 
     FCFSScheduler sched;
     PagedBlockManager mgr(config);
@@ -190,6 +199,19 @@ int main(int argc, char** argv) {
                 result.max_concurrent, result.total_sim_time);
     std::printf("  total_generated=%d max_generated=%d eos_early=%d/%zu\n",
                 total_gen, max_gen, eos_early, result.completed.size());
+    // ── D：账目对齐 ──
+    // 控制面认为的 token 数（prompt + generated）与执行面实际保留的 KV token 数应当一致；
+    // 不一致说明两套账已经漂移（这正是"半解耦"的风险点）。
+    int max_kv_diff = 0;
+    for (const auto& r : result.completed)
+    {
+        if (r.state != RequestState::kDone) continue;
+        const int ctrl = r.PromptLen() + r.generated_tokens;
+        const int kv = exec.KvTokens(r.id);
+        max_kv_diff = std::max(max_kv_diff, std::abs(ctrl - kv));
+    }
+    std::printf("  kv_accounting: control_vs_executor_max_diff=%d tokens\n", max_kv_diff);
+
     std::printf("  prefix: cached_tokens=%d hits=%d/%d | kv: reuse_hits=%d reused_tokens=%d pinned=%zu evicted=%d\n",
                 total_cached, cache.TotalHits(), cache.TotalQueries(),
                 exec.ReuseHits(), exec.ReusedPrefixTokens(),

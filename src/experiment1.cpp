@@ -31,6 +31,7 @@ namespace
         int cancelled = 0;
         double avg_ttft = 0.0;
         double makespan = 0.0;
+        int preempted = 0;
     };
 
     ModelConfig MakeConfig(int num_blocks)
@@ -62,6 +63,7 @@ namespace
         row.max_concurrent = result.max_concurrent;
         row.peak_blocks = result.peak_blocks_in_use;
         row.makespan = result.total_sim_time;
+        row.preempted = result.preempted;
 
         double sum_ttft = 0.0;
         int n_ttft = 0;
@@ -87,11 +89,12 @@ namespace
 
     void PrintRow(const Row& row)
     {
-        std::printf("| %-7s | %14d | %12d | %4d/%-2d | %9.2f | %10.4f |\n",
+        std::printf("| %-7s | %14d | %12d | %4d/%-2d | %9d | %9.2f | %10.4f |\n",
                     row.strategy,
                     row.max_concurrent,
                     row.peak_blocks,
                     row.done, row.done + row.cancelled,
+                    row.preempted,
                     row.avg_ttft * 1000.0,
                     row.makespan);
     }
@@ -99,8 +102,8 @@ namespace
     void RunSuite(int num_blocks, const ExecutorConfig& exec_cfg, const std::vector<TraceSpec>& trace)
     {
         std::printf("\n-- blocks=%d (容量 %d token) --\n", num_blocks, num_blocks * 16);
-        std::printf("| strategy | max_concurrent | peak_blocks  | done   | avg_ttft(ms) | makespan(s) |\n");
-        std::printf("|----------|----------------|--------------|--------|--------------|-------------|\n");
+        std::printf("| strategy | max_concurrent | peak_blocks | done | preempted | avg_ttft(ms) | makespan(s) |\n");
+        std::printf("|----------|----------------|-------------|------|-----------|--------------|-------------|\n");
 
         PrintRow(RunStrategy<NaivePreallocator>("Naive", num_blocks, exec_cfg, trace));
         PrintRow(RunStrategy<PagedBlockManager>("Paged", num_blocks, exec_cfg, trace));

@@ -15,6 +15,7 @@ namespace agentinferkv
         double total_sim_time = 0.0;      // 模拟时钟结束时刻
         int max_concurrent = 0;           // 峰值并发运行请求数
         int peak_blocks_in_use = 0;       // 峰值占用物理块数（碎片对比用）
+        int preempted = 0;                // recompute 抢占次数（块不足时重排队的次数）
     };
 
     // 事件驱动的主循环

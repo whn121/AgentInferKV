@@ -69,7 +69,11 @@ flowchart TD
   代码会在启动时用 `llama_model_is_hybrid/is_recurrent` 检测并禁用（本机 Qwen3.5-4B
   就是这种情况）。**dense 模型上的收益未实测，README 不编数字。**
 - **chunked prefill**：长 prompt 按 512 token 分块 decode（修复 >512 直接 abort 的问题）。
-- **不支持抢占（preemption）/ KV swap**：块不足时用背压和取消替代。这也是实验1里
+- **抢占是 recompute 版（简化）**：块不足时**抢占自己**——释放自己的块、丢掉已生成 token、
+  推迟到达时间重新排队，有空间时从 prompt 重新 prefill。不踢别人，因为 FCFS 下
+  "自己让路 + 推迟到达"已足以让其他请求推进，且不会毁掉别人的进度。
+  每请求最多被抢占 2 次（防活锁），用尽仍不够才判定无法完成。**不做 KV swap**：
+  llama.cpp 没有导出 KV cell 的接口，硬做要 fork。
   Paged 完成率下降的直接原因。
 - **不支持多模型 / 多 tokenizer**：PrefixCache 只有一棵树，没有 `model_id` 维度。
 - **LRU 是软上限**：`Insert` 时尝试淘汰，但如果此刻所有叶子都被活跃请求引用，会暂时超额，
@@ -183,8 +187,8 @@ LRU）→ 如果 llama.cpp 和模型都在，跑实验 3（真实 GPU，3 次取
 | 配置 | 完成 | p50 TTFT | avg TTFT | p95 TTFT | 复用 token |
 |---|---|---|---|---|---|
 | C 基线：prefix 关、kv_reuse 关 | 100/100 | 8.1 ms | 10.0 ms | 17.0 ms | 0 |
-| A 控制面命中：prefix 开、kv_reuse 关 | 100/100 | 8.6 ms | 10.6 ms | 14.3 ms | 0 |
-| B 执行面打通：prefix 开 + `--kv-reuse` | 100/100 | **6.3 ms** | **8.7 ms** | 15.6 ms | **47040** |
+| A 控制面命中、执行面未打通（`--no-reuse`） | 100/100 | 7.0 ms | 8.3 ms | 11.0 ms | 0 |
+| B 控制面命中 + 执行面打通（默认） | 100/100 | **4.6 ms** | **6.6 ms** | 10.0 ms | **47040** |
 
 **怎么读（这才是这个实验的价值）**：
 1. **A 组命中率 98%、命中 47040 token，但 TTFT 没有改善**——因为 `LlamaCppExecutor::Prefill`
@@ -194,6 +198,12 @@ LRU）→ 如果 llama.cpp 和模型都在，跑实验 3（真实 GPU，3 次取
 3. **p95 不能声称改善**：三组在 14.3~17.0 ms 之间波动，100 个样本在共享 GPU 上噪声太大。
 4. B 组是 `--kv-reuse`（实验性）：输出可能因 batch 形状不同而 greedy 翻转（见实验 4），
    所以这里只报延迟、不报正确性。
+
+**已按这个结论修掉（commit 里叫 C+D）**：
+- C：复用由**控制面命中驱动**（dense 模型默认，`--no-reuse` 关）；hybrid 由执行面自动禁用。
+- D：执行面暴露实际 KV token 数（`KvTokens`），控制面用它校验块账目；
+  实测 `control_vs_executor_max_diff = 1`——差的正好是"最后一个已采样但还没喂回去的 token"，
+  说明两边账目已经对齐，剩下的 1 是语义定义差异，不是漂移。
 
 ### 实验 2：PrefixCache 与 LRU
 

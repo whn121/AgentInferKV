@@ -20,6 +20,8 @@ namespace agentinferkv
         };
 
         constexpr double kEps = 1e-9; // 1的-9次方
+    // 单个请求最多被抢占几次：防活锁（块永远不够时不能无限重排队）
+    constexpr int kMaxPreemptPerRequest = 2;
     }
 
     SimulationLoop::SimulationLoop(ModelConfig config, IScheduler& scheduler, IBlockSpaceManager& block_mgr
@@ -43,6 +45,9 @@ namespace agentinferkv
         std::vector<Request> waiting;
         std::vector<RunningRequest> running;
         std::vector<Request> completed;
+        std::vector<Request> requeue;                 // 被抢占后重新排队的请求
+        std::unordered_map<RequestId, int> preempt_count;
+        int preempted_total = 0;
         double sim_time = 0;
         int max_concurrent = 0;
         int peak_blocks = 0;
@@ -157,14 +162,37 @@ namespace agentinferkv
                     BlockTableView new_view;
                     if (!block_mgr_.AppendToken(r.req.id, new_total, new_view)) 
                     {
-                        r.req.Cancel(sim_time);
+                        // ── Recompute 抢占（简化版：抢占"自己"）──
+                        // 块不够时不再直接取消，而是释放自己的块、丢掉已生成 token、
+                        // 重新排队，等有空间时从 prompt 重新 prefill。
+                        // 为什么不踢别人：FCFS 下"自己让路 + 推迟到达时间"就足以让
+                        // 其他请求推进，且不会把别人的进度也毁掉（见 README 抢占小节）。
                         executor_.Release(r.req.id);
                         if (prefix_cache_ != nullptr) 
                         {
                             prefix_cache_->Release(r.req.prompt_tokens, config_.block_size);
                         }
-                        completed.push_back(r.req);
                         block_mgr_.Free(r.req.id);
+
+                        Request again = r.req;
+                        again.state = RequestState::kWaiting;
+                        again.generated_tokens = 0;
+                        again.first_token_time = -1.0;
+                        again.finish_time = -1.0;
+                        // 推迟到达时间 → 排到队尾，避免"立刻又被选中、反复抢占自己"
+                        again.arrival_time = sim_time + kEps;
+
+                        if (++preempt_count[again.id] <= kMaxPreemptPerRequest)
+                        {
+                            requeue.push_back(again);
+                            ++preempted_total;
+                        }
+                        else
+                        {
+                            // 抢占次数用尽仍然不够 → 判定为该请求无法完成
+                            again.state = RequestState::kCancelled;
+                            completed.push_back(again);
+                        }
                         to_remove.push_back(i);
                         continue;
                     }
@@ -232,6 +260,10 @@ namespace agentinferkv
                 {
                     running.erase(running.begin() + *it);
                 }
+
+                // 被抢占的请求回到等待队列（下一轮调度）
+                for (auto& q : requeue) waiting.push_back(std::move(q));
+                requeue.clear();
             }
 
             // 第五步, 调用 (用 BlockBudget 模拟扣减)
@@ -327,6 +359,7 @@ namespace agentinferkv
         SimulationResult result;
         result.completed = std::move(completed);
         result.total_sim_time = sim_time;
+        result.preempted = preempted_total;
         result.max_concurrent = max_concurrent;
         result.peak_blocks_in_use = peak_blocks;
         return result;
