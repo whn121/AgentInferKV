@@ -209,6 +209,31 @@ namespace agentinferkv
     {
         (void)view;
 
+        // 用真实 tokenizer 或 prompt_text
+        std::string text = req.prompt_text;
+        if (text.empty()) 
+        {
+            text = std::string(static_cast<std::size_t>(req.PromptLen()) * 2, 'a');
+        }
+        std::vector<int32_t> tokens = TokenizeText(text);
+        if (tokens.empty()) tokens.push_back(0);
+        return PrefillInternal(req, tokens);
+    }
+
+    double LlamaCppExecutor::PrefillTokens(const Request& req, const std::vector<int32_t>& tokens)
+    {
+        return PrefillInternal(req, tokens);
+    }
+
+    std::vector<int32_t> LlamaCppExecutor::GeneratedTokens(RequestId id) const
+    {
+        auto it = generated_ids_.find(id);
+        return it == generated_ids_.end() ? std::vector<int32_t>{} : it->second;
+    }
+
+    double LlamaCppExecutor::PrefillInternal(const Request& req, const std::vector<int32_t>& tokens)
+    {
+
         // 防御 同一 id 重复进入 Prefill 时先回收旧 seq, 否则会泄漏 KV
         auto existing = seq_map_.find(req.id);
         if (existing != seq_map_.end())
@@ -231,15 +256,6 @@ namespace agentinferkv
             return -1.0;   // 用负值表示失败
         }
         seq_map_[req.id] = seq_id;
-
-        // 用真实 tokenizer 或 prompt_text
-        std::string text = req.prompt_text;
-        if (text.empty()) 
-        {
-            text = std::string(static_cast<std::size_t>(req.PromptLen()) * 2, 'a');
-        }
-        std::vector<int32_t> tokens = TokenizeText(text);
-        if (tokens.empty()) tokens.push_back(0);
 
         // ── 跨请求 KV 复用：命中前缀就先把 KV 复制过来，只 Prefill 后缀 ──
         seq_owner_[seq_id] = req.id;

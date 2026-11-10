@@ -195,7 +195,12 @@ namespace agentinferkv
 
                             Request again = v.req;
                             again.state = RequestState::kWaiting;
-                            again.generated_tokens = 0;
+                            // 保留进度：记下已生成的 token，重新排队后用 prompt+generated 重算
+                            again.resume_ids = executor_.GeneratedTokens(again.id);
+                            again.resume_tokens = again.resume_ids.empty()
+                                ? again.generated_tokens
+                                : static_cast<int>(again.resume_ids.size());
+                            again.generated_tokens = again.resume_tokens;
                             again.first_token_time = -1.0;
                             again.finish_time = -1.0;
                             again.arrival_time = sim_time + kEps;
@@ -236,7 +241,12 @@ namespace agentinferkv
 
                         Request again = r.req;
                         again.state = RequestState::kWaiting;
-                        again.generated_tokens = 0;
+                        // 保留进度：已生成的 token 不丢，重排后一起 prefill
+                        again.resume_ids = executor_.GeneratedTokens(again.id);
+                        again.resume_tokens = again.resume_ids.empty()
+                            ? again.generated_tokens
+                            : static_cast<int>(again.resume_ids.size());
+                        again.generated_tokens = again.resume_tokens;
                         again.first_token_time = -1.0;
                         again.finish_time = -1.0;
                         // 推迟到达时间 → 排到队尾，避免"立刻又被选中、反复抢占自己"
@@ -394,11 +404,33 @@ namespace agentinferkv
                 }
 
                 it->StartPrefill(sim_time);
-                
+
+                // 保留进度的重算：把 prompt 和已生成的 token 拼起来一次 prefill。
+                // 计算量和"丢掉进度重算"相当，但 prefill 是批量的、decode 是逐 token 的，
+                // 所以批量重算更快，而且客户端看到的输出不会重来。
+                double prefill_cost = 0.0;
+                if (it->resume_tokens > 0)
+                {
+                    std::vector<int32_t> tokens = it->prompt_tokens;
+                    if (!it->resume_ids.empty())
+                    {
+                        tokens.insert(tokens.end(), it->resume_ids.begin(), it->resume_ids.end());
+                    }
+                    else
+                    {
+                        tokens.resize(tokens.size() + static_cast<std::size_t>(it->resume_tokens), 0);
+                    }
+                    it->generated_tokens = it->resume_tokens;
+                    prefill_cost = executor_.PrefillTokens(*it, tokens);
+                }
+                else
+                {
+                    prefill_cost = executor_.Prefill(*it, view);
+                }
+
                 RunningRequest rr;
                 rr.req = *it;
                 rr.view = view;
-                double prefill_cost = executor_.Prefill(*it, view);
                 if (prefill_cost < 0.0) 
                 {
                     // 执行失败 取消请求，释放资源

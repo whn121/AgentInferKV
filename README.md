@@ -378,11 +378,17 @@ abort。开了 unified 之后 `n_stream == 1`，`seq_cp` 走"共享 cell 元数�
 | # | 问题 | 处理 | 结果 |
 |---|---|---|---|
 | 1 | 默认打开有正确性风险的 KV 复用 | **默认关闭**，`--kv-reuse` 显式开启 | 收益仍可复现：p50 7.0→4.6ms（-34%）；风险见实验 4 |
-| 2 | 抢占只是"抢占自己" | 实现 **LIFO victim** 策略（`--preempt=victim`）并对比 | self：blocks=16 完成率 **6/6**；victim：**1/6**——简化版重启会丢进度、互相抢占抖动。默认仍用 self，结论写进文档 |
+| 2 | 抢占丢进度 | 实现**保留进度**的 recompute：被抢占时保存已生成 token，重排后用 `prompt+generated` 一次 prefill | self：blocks=8 完成率 **4/6 → 6/6**，抢占次数 **9 → 4**；victim 仍只有 1/6（见下） |
+| 2b | 抢占策略只有 self | 实现 LIFO victim（`--preempt=victim`）并对比 | victim 1/6：在 **decode 扩块**时抢别人，等于两个在跑的请求互抢；vLLM 的 victim 抢占主要用在**准入**时（新请求进不来），场景不同 |
 | 3 | 块表没落到物理 cell | 新增 `tools/kv_cell_demo.cpp`：自管 cell 池，`block i → cells [i*16, i*16+16)` | `cell_reuse_verified=yes`；超额分配返回 0 块（全有或全无） |
 | 4 | trace 是模板拼的 | 新增 `--corpus=bench/corpus.txt`（183 行真实文本），长度分布仍受控 | 可复现：`--seed` 固定 |
 | 5 | 没有真 continuous batching | 新增 `--sync-batch` 开关，对比"整批等最慢" vs "各自等自己" | 0.5B 上差异低于噪声（decode 上下文项约 1µs/token），结论：本项目 batching 影响可忽略 |
 | 6 | 没有对外服务 | 新增 `tools/http_server.cpp`（`POST /v1/completions`） | `curl` 返回 `{"completed":1,"ttft_ms":5.6,"tokens":8}` |
+
+**保留进度为什么有效（反直觉的地方）**：
+丢掉进度重算 = 重算 prompt + 重新逐 token 生成；保留进度 = 一次 prefill(prompt+generated)。
+**两者算的 token 总数差不多**，但 prefill 是批量的、decode 是逐 token 的，
+所以保留进度更快；而且客户端看到的输出不会"从头再来"。
 
 **victim 抢占为什么更差（值得记住的结论）**：
 被抢占的请求在简化实现里是"释放块 + 丢掉已生成 token + 从 prompt 重算"，

@@ -15,7 +15,8 @@ namespace agentinferkv
     {
         if (tables_.count(req.id)) return false;
         int prefix_tokens = static_cast<int>(prefix_blocks.size()) * config_.block_size;
-        int suffix_tokens = req.PromptLen() - prefix_tokens;
+        // 保留进度重算时，已生成的 token 也要占块
+        int suffix_tokens = req.PromptLen() + req.resume_tokens - prefix_tokens;
         if (suffix_tokens < 0) suffix_tokens = 0;
         int need = config_.BlocksForTokens(suffix_tokens);
         return static_cast<int>(free_blocks_.size()) >= need;
@@ -44,7 +45,7 @@ namespace agentinferkv
             ref_counts_[bid] = 1;
         }
         tables_.emplace(req.id, view);
-        current_tokens_[req.id] = req.PromptLen();
+        current_tokens_[req.id] = req.PromptLen() + req.resume_tokens;
         return view;
     }
 
@@ -126,7 +127,7 @@ namespace agentinferkv
     
     int PagedBlockManager::EstimateBlocks(const Request& req) const 
     {
-        return config_.BlocksForTokens(req.PromptLen());
+        return config_.BlocksForTokens(req.PromptLen() + req.resume_tokens);
     }
 
     int PagedBlockManager::TailUnusedCapacity() const 

@@ -50,8 +50,12 @@ namespace agentinferkv
 
         // prompt 长度（token 数）
         int PromptLen() const { return static_cast<int>(prompt_tokens.size()); }
-        // prompt + max_new_tokens 用于预估总块需求
-        int TotalTokens() const { return PromptLen() + max_new_tokens; }
+        // 被抢占后"保留进度"重算时，需要额外重算的已生成 token 数
+        int resume_tokens = 0;
+        std::vector<TokenId> resume_ids;   // 真实执行器能给出具体 token id
+
+        // prompt + 需要重算的已生成 token + max_new_tokens，用于预估总块需求
+        int TotalTokens() const { return PromptLen() + resume_tokens + max_new_tokens; }
 
         // 首 token 延迟，未产出返回 -1
         double Ttft() const;
@@ -196,6 +200,23 @@ namespace agentinferkv
 
         // 该请求是否已采样到 EOS。默认 false，SimulatedExecutor 不实现。
         virtual bool IsEos(RequestId id) const { (void)id; return false; }
+
+        // 按【token 序列】做 prefill：用于"保留进度"的重算
+        // （被抢占时把 prompt + 已生成 token 一起重新 prefill，输出不丢）。
+        // 默认实现回退到 Prefill（忽略 tokens），真实执行器需要重写。
+        virtual double PrefillTokens(const Request& req, const std::vector<int32_t>& tokens)
+        {
+            (void)tokens;
+            return Prefill(req, BlockTableView{});
+        }
+
+        // 这个请求已经生成过哪些 token（抢占时用来保存进度）。
+        // 默认空：模拟执行器没有真实 token。
+        virtual std::vector<int32_t> GeneratedTokens(RequestId id) const
+        {
+            (void)id;
+            return {};
+        }
     };
 
 }

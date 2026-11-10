@@ -47,6 +47,9 @@ namespace agentinferkv
         // view 参数当前未使用，保留是为了未来接真实 Executor 时签名不变。
         double Prefill(const Request& req, const BlockTableView& view) override;
 
+        // 按 token 序列 prefill（保留进度重算用）：成本只取决于 token 数
+        double PrefillTokens(const Request& req, const std::vector<int32_t>& tokens) override;
+
         // 返回 base_decode + per_token_decode * 1（Decode 每步只生成 1 个 token）
         double Decode(const Request& req, const BlockTableView& view) override;
 

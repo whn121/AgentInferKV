@@ -14,6 +14,15 @@ namespace agentinferkv
         return cost > 0.0 ? cost : 0.0;
     }
 
+    double SimulatedExecutor::PrefillTokens(const Request& req, const std::vector<int32_t>& tokens)
+    {
+        // 与 Prefill 同口径，但用调用方给的 token 序列长度（可能包含要重算的已生成 token）
+        int prefill_tokens = static_cast<int>(tokens.size()) - req.cached_prefix_len;
+        if (prefill_tokens < 0) prefill_tokens = 0;
+        double cost = config_.base_prefill_s + config_.per_token_prefill_s * static_cast<double>(prefill_tokens);
+        return cost > 0.0 ? cost : 0.0;
+    }
+
     double SimulatedExecutor::Decode(const Request& req, const BlockTableView& view) 
     {
         (void)view;

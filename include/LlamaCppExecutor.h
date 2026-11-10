@@ -27,6 +27,8 @@ namespace agentinferkv
                                     , int n_seq_max = 16);
         ~LlamaCppExecutor() override;
         double Prefill(const Request& req, const BlockTableView& view) override;
+        double PrefillTokens(const Request& req, const std::vector<int32_t>& tokens) override;
+        std::vector<int32_t> GeneratedTokens(RequestId id) const override;
         double Decode(const Request& req, const BlockTableView& view) override;
         std::vector<double> DecodeBatch(const std::vector<const Request*>& reqs,
             const std::vector<BlockTableView>& views) override;
@@ -153,6 +155,8 @@ namespace agentinferkv
         std::unordered_map<RequestId, int> kv_tokens_final_;
 
         std::vector<int> Tokenize(const std::string& text) const;
+        // 内部实现：tokens 已经准备好（可能是 prompt，也可能是 prompt+已生成）
+        double PrefillInternal(const Request& req, const std::vector<int32_t>& tokens);
         int AcquireSeqId();
 
         static std::uint64_t PrefixKey(const std::vector<int32_t>& tokens, int len);
