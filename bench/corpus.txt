@@ -1,0 +1,183 @@
+C++17 实现的 LLM 推理调度与 KV Cache 管理控制平面原型。参照 vLLM V1 的 Scheduler /
+BlockSpaceManager 分层和 SGLang 的前缀复用思路，实现 Continuous Batching 调度、
+执行层通过 `IInferenceExecutor` 接口与控制层解耦：模拟执行器用于控制层逻辑验证，llama.cpp
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build -j
+./build/agentinferkv_experiment1            # 实验1：Naive vs Paged
+./build/agentinferkv_demo                   # 实验2：PrefixCache 与 LRU
+`IInferenceExecutor` 接口解耦。模拟执行器用于逻辑验证，llama.cpp 后端用于真实 GPU 验证。
+Scheduler** | FCFS（对标 vLLM V1 默认调度），waiting/running 队列、准入控制、BlockBudget 模拟扣减 |
+BlockManager** | Naive（按 max_len 预分配，基线）和 Paged（按 prompt 分配，Decode 按需扩块） |
+LRU 淘汰** | 缓存块数上限可配；超限时从最久未使用的**叶子**淘汰，并通过 BlockManager 归还物理块 |
+跨请求 KV 复用** | 真实执行层用 `llama_memory_seq_cp` 把已完成请求的前缀 KV 共享给新请求（共享 cell，不拷数据）；hybrid / recurrent 模型自动检测并禁用 |
+SimulationLoop** | 事件驱动主循环，按模拟时钟推进，处理到达 / Prefill 完成 / Decode 完成 |
+Executor** | Simulated（公式耗时）和 LlamaCpp（真实 GPU 适配，支持批量 Decode、EOS 判断） |
+可观测性** | 每次 Run 返回 `max_concurrent` 和 `peak_blocks_in_use`；缓存报告命中数、持有块数、淘汰数 |
+控制平面与执行平面是半解耦的**：`PagedBlockManager` 的 `BlockId` 和 llama.cpp 内部
+跨请求 GPU KV 共享只在 dense 模型上成立**：执行层用 `llama_memory_seq_cp` 共享 cell，
+代码会在启动时用 `llama_model_is_hybrid/is_recurrent` 检测并禁用（本机 Qwen3.5-4B
+chunked prefill**：长 prompt 按 512 token 分块 decode（修复 >512 直接 abort 的问题）。
+Prefill 不批量，不支持 Chunked Prefill**：Decode 支持 batch 合并，Prefill 仍逐请求
+真实执行层没有 detokenize**：`LlamaCppExecutor` 完成 Prefill/Decode、采样和 EOS 判断，
+需要先编译 llama.cpp 的 CUDA 版本（`-DGGML_CUDA=ON`），默认路径 `~/src/llama.cpp`，
+cmake -S . -B build-real -DCMAKE_BUILD_TYPE=Release -DUSE_LLAMA_CPP=ON
+./build-real/agentinferkv_demo_real ~/models/qwen3-5-4B-Q4_K_M.gguf
+脚本会依次执行：编译 → 跑单元测试 → 跑实验 1（Naive vs Paged）→ 跑实验 2（PrefixCache /
+6 个请求**同时到达**（arrival = 0），prompt 20 token，最多生成 30 token，block_size = 16。
+所有请求总需求 50 token/请求；Naive 预分配 4 块/请求，Paged 先分 2 块、Decode 按需扩块。
+blocks | 策略 | max_concurrent | peak_blocks | done | avg_ttft | makespan |
+8 | Paged | **4** | 8 | **4/6** | 9 | **6.65 ms** | 0.0848 s |
+16 | Paged | **6** | 16 | **6/6** | 2 | 7.59 ms | 0.0481 s |
+工具：tools/calibrate_executor.cpp     ← 真实跑 llama.cpp，测不同 prompt 长度的耗时
+拟合：tools/fit_executor_config.py     ← 对 (tokens, prefill_ms) 做最小二乘
+方法**：prompt 长度取 11 / 41 / 81 / 161 / 321 token，每个长度重复 9 次取中位数，
+Qwen2.5-0.5B-Instruct Q4_K_M（dense，默认值） | **5.63 ms + 3.09 µs/token** | 0.33 | **0.63 ms/token** |
+Qwen3.5-4B Q4_K_M（hybrid） | **12.47 ms + 31.72 µs/token** | **0.91** | **1.10 ms/token** |
+0.5B 只有 **0.33**，因为小模型在 4060 上 prefill 主要是 kernel launch 等固定开销，
+而 `n_batch = 512`，超过就 `GGML_ASSERT` abort（实验里 prompt 是 415，刚好躲过）。
+三组对比**（RTX 4060 Laptop / Qwen2.5-0.5B / ctx=8192 / n_seq=4）：
+C 基线：prefix 关、kv_reuse 关 | 100/100 | 8.1 ms | 10.0 ms | 17.0 ms | 0 |
+A 控制面命中、执行面未打通（`--no-reuse`） | 100/100 | 7.0 ms | 8.3 ms | 11.0 ms | 0 |
+B 控制面命中 + 执行面打通（默认） | 100/100 | **4.6 ms** | **6.6 ms** | 10.0 ms | **47040** |
+1. **A 组命中率 98%、命中 47040 token，但 TTFT 没有改善**——因为 `LlamaCppExecutor::Prefill`
+2. **B 组把 `seq_cp` 打通后才有真实收益**：p50 8.1→6.3 ms（-22%），avg 10.0→8.7 ms（-13%）。
+3. **p95 不能声称改善**：三组在 14.3~17.0 ms 之间波动，100 个样本在共享 GPU 上噪声太大。
+4. B 组是 `--kv-reuse`（实验性）：输出可能因 batch 形状不同而 greedy 翻转（见实验 4），
+C：复用由**控制面命中驱动**（dense 模型默认，`--no-reuse` 关）；hybrid 由执行面自动禁用。
+实测 `control_vs_executor_max_diff = 1`——差的正好是"最后一个已采样但还没喂回去的 token"，
+Agent 多轮场景：System Prompt 32 token + User Query 16 token，5 个请求，相同 System Prompt，
+策略 | avg_ttft | total_prefill_tokens | hits | peak_blocks | cached | evicted |
+ON + LRU(3 块) | **0.0032 s** | **112** | 4/5 | **4** | 3 | 4 |
+调用了两次 `executor_.Prefill()`，而 `next_event_time` 用的是**第二次**的耗时——第一次
+环境**：RTX 4060 Laptop 8GB + WSL2 + CUDA，Qwen3.5-4B Q4_K_M（`qwen35` 架构，hybrid），
+5 个请求、50ms 到达间隔、`max_new_tokens=5`、prompt 75 token（6 段重复的 system prompt + user query）。
+`layers=32, kv_heads=4, head_dim=160`（`n_embd=2560, n_head=16`）。因此每 token KV 是
+`2×32×4×160×2 = 80 KB`（不是 128 KB），`num_blocks=64` 的池子是 1024 token。
+`main_real` 现在先 `llama_model_load` 再填 `ModelConfig`，并打印 `model_shape:` 供核对。
+运行 | avg TTFT | max_concurrent | total_generated | eos_early | token_digest |
+> 三次 `token_digest` 完全一致（`1bd782e9460be1ea`），说明 greedy + 固定 batch 组成下
+> `kv_reuse_supported=no`：Qwen3.5 是 hybrid，`reuse_hits=0`，PrefixCache 只在控制面命中（3/5）。
+for i in 1 2 3; do ./build-real/agentinferkv_demo_real ~/models/qwen3-5-4B-Q4_K_M.gguf; done
+（Qwen2.5-0.5B-Instruct Q4_K_M，24 层 / 2 KV head / head_dim 64 / 12 KB per token）
+用 `--sequential --system-repeat=40 --ctx=4096` 把共享前缀拉长（prompt 415 token，
+模式 | kv_reuse_supported | reuse_hits | reused_tokens | 5 个请求的 token_digest |
+复用开 | yes | 4 | 1600（4×400） | `0130… 28fb… 1524… 7c97… 1524…` |
+问题**：`prompt=415` 时复用 400 token，输出与"完整 prefill"**不一致**（r2 起分叉）。
+第一次测的时候连"不复用"的两次运行 digest 都不一样——因为 `--sequential` 的 0.6s 间隔小于单请求耗时，
+batch 组成每次不同**，而 llama.cpp 在不同 batch 下浮点归约顺序不同。这不是复用 bug，是实验方法错。
+加 `--arrival-gap=5`（严格串行，下个请求到达时上个请求一定已完成）后，两次运行的 digest 完全稳定：
+复用开（`--kv-reuse`，reuse_hits=4，1600 token） | `0130… 28fb… 1524… 7c97… 1524…`（两次相同） |
+加了 `--verify-reuse` 探针（复用路径解码后，在**独立 context** 里对同一段 prompt 做完整 prefill，
+复用边距 | reused token | maxdiff | argmax 是否一致 | digest 与完整 prefill |
+`maxdiff ≈ 1` 看起来很大，但**不能当成 KV 错的证据**：参考路径是 415 token 一个 batch，
+复用路径只解 15 token，**batch 形状不同 → GEMM 归约顺序不同**，fp16 下 logits 差 O(1) 是正常的。
+待查（如果要继续）**：把"复用"和"完整 prefill"放进**同一个 batch**（两个 seq 同时 decode），
+./build-real/agentinferkv_demo_real ~/models/qwen2.5-0.5b-instruct-q4_k_m.gguf \
+sequential --arrival-gap=5 --system-repeat=40 --ctx=4096 --kv-reuse
+控制层确实命中了（`hits=3/5`，`cached_tokens=192`），但**执行层没有复用 KV**：这个模型是
+hybrid 架构（有 recurrent 层），而 recurrent state 是整段历史的摘要，**不能按 position 区间
+截取**。硬用 `llama_memory_seq_cp` 复制前 N 个 token 的 KV 会得到错误的中间状态。
+复用时不一致（`token_digest` 从全相同变成 3 种）。所以现在的代码在 `LlamaCppExecutor`
+构造时用 `llama_model_is_hybrid` / `llama_model_is_recurrent` 检测，命中就打印
+[LlamaCppExecutor] KV reuse disabled: model is hybrid; recurrent/hybrid state cannot be sliced by position.
+dense 模型（Llama / Qwen2.5 等纯 attention）上这条路径会真正生效：`Prefill` 命中前缀时
+用 `llama_memory_seq_cp(src, dst, 0, len)` 共享 cell，只 prefill 后缀。本机只有 Qwen3.5，
+`llama_context_params.kv_unified = true`。默认 `kv_unified=false` 时
+传入中间位置会直接 `GGML_ASSERT(is_full && "seq_cp() is only supported for full KV buffers")`
+abort。开了 unified 之后 `n_stream == 1`，`seq_cp` 走"共享 cell 元数据"的路径，代价接近 0。
+1. **seq_id 一致性**：`llama_batch_get_one` 固定使用 sequence ID 0，多请求场景下会导致
+2. **真实 tokenizer 对齐**：`main_real.cpp` 用 `LlamaCppExecutor::TokenizeText` 填
+3. **执行失败传播**：`Prefill` 和 `DecodeBatch` 失败时返回负耗时，`SimulationLoop` 检查
+4. **seq 容量限制**：`AcquireSeqId` 在 `next_seq_id_ >= n_seq_max_` 时返回 -1，避免
+位置**：`SimulationLoop::Run` 里 `prefill_cost` 和 `next_event_time` 各调了一次
+回归测试**：`tests/test_prefill_once.cpp`（断言 `prefill_calls == 请求数`，
+回归测试**：`tests/test_prefix_sharing.cpp`（断言第二个请求 `view[0]` 就是命中块、
+修复**：`PrefixCache(block_mgr, max_cached_blocks)`，超限时从 LRU 尾部淘汰**叶子且
+ref_count == 0** 的节点，并通过 `ReleaseSharedBlock` 归还物理块；命中路径会把整条
+位置**：`src/main.cpp` 只跑 PrefixCache OFF/ON，`NaivePreallocator` 只在测试里出现，
+修复**：新增 `src/experiment1.cpp`，同一 trace 下跑 Naive / Paged 两套 Manager，
+输出 `max_concurrent`、`peak_blocks`、`done`、`avg_ttft`、`makespan`。
+`tests/test_prefix_cache.cpp` 里一个写错后废弃的 `TestSharedPrefix()`（未调用，编译告警）
+（按 block_size 对齐），后续请求命中相同前缀时用 `llama_memory_seq_cp` 共享 KV cell，
+同时把 `kv_unified` 打开，否则跨 stream 的 `seq_cp` 只支持整块、会 `GGML_ASSERT` abort。
+修复**：用 `llama_model_is_hybrid` / `llama_model_is_recurrent` 检测，命中就打印原因
+并把 `chunk_tokens_` 强制置 0；同时加了 `GeneratedIds()` 和 `token_digest` 输出，
+`PagedBlockManager` 实现 PagedAttention 的**块管理控制逻辑**：`BlockId` 的分配、逻辑→物理
+映射、引用计数、按需扩块。对应 vLLM 的 `BlockSpaceManager`。**不是**真实 KV 张量存储。
+cache 管理，`PagedBlockManager` 的块账目和它是两套独立系统。**这是半解耦，不是完全控制。**
+`DecodeBatch` 把多个请求的 token 合并成一次 `llama_decode`；Prefill 仍逐请求执行。**原因：**
+`LlamaCppExecutor` 是 llama.cpp C API 的适配层：把控制层的 `Request` 映射到 llama.cpp 的
+`seq_id`、`llama_batch`、`n_past`。**llama.cpp 内部的 KV cache 管理、batch 调度语义以
+Interfaces.h          IBlockSpaceManager / IScheduler / IInferenceExecutor / Request
+test_request | Request 状态机、TTFT/Latency 计算、非法转换拒绝、FinishByEos |
+test_prefill_once** | 每个请求 Prefill 恰好一次；总计算步数 == 生成 token 数 |
+test_lru_eviction** | LRU 淘汰顺序、容量上限、淘汰后块回池、无 manager 时退化为不淘汰 |
+// [num_layers, 2, num_blocks, block_size, num_kv_heads, head_dim]
+return KvBytesPerToken() * static_cast<std::size_t>(seq_len);
+// 终态（DONE / CANCELLED）不能再转换；具体判定见 Request.cpp 的 CanTransition。
+std::vector<TokenId> prompt_tokens;          // 已tokenize的输入
+std::string prompt_text;     // 真实文本LlamaCppExecutor 用它 tokenize
+double first_token_time = -1.0;              // 首个 token 产出时刻，-1 表示未产出
+double finish_time = -1.0;                   // DONE/CANCELLED 时刻，-1 表示未结束
+int PromptLen() const { return static_cast<int>(prompt_tokens.size()); }
+int TotalTokens() const { return PromptLen() + max_new_tokens; }
+int NumBlocks() const { return static_cast<int>(logical_to_physical.size()); }
+return logical_to_physical.at(static_cast<std::size_t> (logical_idx));
+// blocks_needed 由调用方注入：Naive 按 TotalTokens 估，Paged 按 PromptLen 估
+virtual bool CanAllocate(const Request& req, const std::vector<BlockId>& prefix_blocks = {}) const = 0;
+virtual BlockTableView Allocate(const Request& req, const std::vector<BlockId>& prefix_blocks = {}) = 0;
+virtual bool AppendToken(RequestId id, int new_total_tokens, BlockTableView& out_view) = 0;
+virtual SchedulerOutput Schedule(const std::vector<Request>& waiting,
+const std::vector<Request>& running, BlockBudget& budget) = 0;
+virtual double Prefill(const Request& req, const BlockTableView& view) = 0;
+virtual double Decode(const Request& req, const BlockTableView& view) = 0;
+virtual std::vector<double> DecodeBatch(const std::vector<const Request*>& reqs,
+// SimulatedExecutor 是空实现,LlamaCppExecutor 释放 seq_id 和 KV cache
+virtual bool IsEos(RequestId id) const { (void)id; return false; }
+//   - max_cached_blocks > 0 且 block_mgr 非空时，超出容量会按 LRU 淘汰叶子节点，
+explicit PrefixCache(IBlockSpaceManager* block_mgr = nullptr,
+MatchResult Match(const std::vector<TokenId>& prompt, int block_size) const;
+std::vector<BlockId> Insert(const std::vector<TokenId>& prompt, const std::vector<BlockId>& blocks, int block_size);
+void Release(const std::vector<TokenId>& prompt, int block_size);
+std::size_t CachedBlocks() const { return by_block_.size(); }
+std::size_t EvictedBlocks() const { return evicted_blocks_; }
+std::vector<TokenId> tokens;              // block_size 个 token
+BlockId block_id = -1;                    // 对应物理块 root 是 -1
+int ref_count = 0;                        // 活跃请求数（Insert +1 / Release -1）
+static Node* FindChild(Node* cur, const std::vector<TokenId>& tokens);
+mutable std::list<Node*> lru_;                        // front = 最近使用
+bool CanAllocate(const Request& req, const std::vector<BlockId>& prefix_blocks = {}) const override;
+BlockTableView Allocate(const Request& req, const std::vector<BlockId>& prefix_blocks = {}) override;
+bool AppendToken(RequestId id, int new_total_tokens, BlockTableView& out_view) override;
+std::unordered_map<RequestId, int> current_tokens_;  // 每请求当前已分配的 token 容量
+std::unordered_map<RequestId, BlockTableView> tables_; // 请求 -> 快视图
+std::unordered_map<BlockId, int> ref_counts_;   // 每个已分配块的引用计数
+//   prefill = 5.63 ms + 3.09 µs/token      (R² = 0.33，固定开销主导)
+//   prefill = 12.47 ms + 31.72 µs/token    (R² = 0.91，线性很好)
+//   想用这组：ExecutorConfig{0.012466, 0.000031718, 0.001101, 0.0}
+double base_prefill_s = 0.005634;         // 5.63 ms（0.5B 实测拟合）
+double Prefill(const Request& req, const BlockTableView& view) override;
+// 返回 base_decode + per_token_decode * 1（Decode 每步只生成 1 个 token）
+double Decode(const Request& req, const BlockTableView& view) override;
+std::vector<double> DecodeBatch(const std::vector<const Request*>& reqs,
+std::vector<Request> BuildRequests(const std::vector<TraceSpec>& specs);
+explicit LlamaCppExecutor(const std::string& model_path, int n_gpu_layers = 99, int n_ctx = 2048
+// 供 main_real 填 prompt_tokens，保证 PrefixCache 匹配和真实 Prefill 用同一套 token。
+std::vector<int32_t> TokenizeText(const std::string& text) const;
+int ReusedPrefixTokens() const { return reused_prefix_tokens_; }
+bool KvReuseSupported() const { return kv_reuse_supported_; }
+double LastVerifyMaxDiff() const { return last_verify_max_diff_; }
+void SetReuseMargin(int margin_tokens) { reuse_margin_ = margin_tokens > 0 ? margin_tokens : 0; }
+const std::vector<int32_t>* GeneratedIds(RequestId id) const
+std::unordered_map<RequestId, int> seq_map_; // RequestId -> llama_seq_id
+std::unordered_map<RequestId, int> n_past_; // RequestId -> 已处理 token 数
+std::unordered_map<RequestId, int32_t> pending_tokens_;  // 待喂入下一次 decode 的 token
+std::unordered_map<std::uint64_t, std::pair<int, int>> prefix_index_;
+std::unordered_map<RequestId, std::vector<int32_t>> generated_ids_;
+static std::uint64_t PrefixKey(const std::vector<int32_t>& tokens, int len);
+void RegisterPrefixes(int seq_id, const std::vector<int32_t>& tokens);
+SchedulerOutput Schedule(const std::vector<Request>& waiting, const std::vector<Request>& running,
+int preempted = 0;                // recompute 抢占次数（块不足时重排队的次数）
+//   - 启用 PrefixCache 时，缓存主动持有的块会留在池外（max_cached_blocks == 0），
+SimulationLoop(ModelConfig config, IScheduler& scheduler, IBlockSpaceManager& block_mgr, IInferenceExecutor& executor
+void SetPreemptPolicy(PreemptPolicy p) { preempt_policy_ = p; }
+void SetDecodeSyncBatch(bool on) { decode_sync_batch_ = on; }

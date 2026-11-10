@@ -31,6 +31,18 @@ namespace agentinferkv
         SimulationLoop(ModelConfig config, IScheduler& scheduler, IBlockSpaceManager& block_mgr, IInferenceExecutor& executor
                         , PrefixCache* prefix_cache = nullptr);
         
+        // 抢占策略：
+        //   Self   —— 块不够时抢占"自己"（释放自己的块、重排队），实现简单、不会毁别人进度；
+        //   Victim —— 选一个正在跑的后到请求（LIFO）作为 victim，释放它的块给当前请求，
+        //             victim 重新排队。更接近 vLLM 的 recompute preemption。
+        enum class PreemptPolicy { Self, Victim };
+        void SetPreemptPolicy(PreemptPolicy p) { preempt_policy_ = p; }
+
+        // 解码批模式：
+        //   Continuous（默认）—— 每个请求只等自己的解码耗时（连续批处理的效果）；
+        //   Sync              —— 整批等最慢的那个（静态 batch 的效果，用来做对照）。
+        void SetDecodeSyncBatch(bool on) { decode_sync_batch_ = on; }
+
         // 跑完整个trace, 返回结果 调用后 block_mgr 应该回到初始空闲状态
         SimulationResult Run(std::vector<Request> requests);
 
@@ -40,5 +52,7 @@ namespace agentinferkv
         IBlockSpaceManager& block_mgr_;
         IInferenceExecutor& executor_;
         PrefixCache* prefix_cache_;
+        PreemptPolicy preempt_policy_ = PreemptPolicy::Self;
+        bool decode_sync_batch_ = false;
     };
 }

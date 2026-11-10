@@ -9,6 +9,7 @@
 #include <cstdint>
 #include <numeric>
 #include <random>
+#include <fstream>
 #include <cstdio>
 #include <cstring>
 #include <string>
@@ -47,6 +48,7 @@ int main(int argc, char** argv) {
     double arrival_gap = -1.0;   // <0 表示用默认值（sequential 0.6s / 否则 0.05s）
     bool verify_reuse = false;
     bool reuse_disabled = false;
+    bool sync_batch = false;
     int reuse_margin = 0;
     int num_requests = 5;
     int mix_short = 50, mix_mid = 30, mix_long = 20;
@@ -54,6 +56,7 @@ int main(int argc, char** argv) {
     int max_new = 5;
     int n_seq = 16;
     int num_blocks = 64;
+    std::string corpus_path;   // 非空则从真实文本文件取 prompt
     for (int i = 2; i < argc; ++i) {
         if (std::strcmp(argv[i], "--no-prefix") == 0) enable_prefix = false;
         if (std::strcmp(argv[i], "--no-kv-reuse") == 0) enable_kv_reuse = false;
@@ -65,12 +68,14 @@ int main(int argc, char** argv) {
         if (std::strncmp(argv[i], "--arrival-gap=", 14) == 0) arrival_gap = std::atof(argv[i] + 14);
         if (std::strcmp(argv[i], "--verify-reuse") == 0) verify_reuse = true;
         if (std::strcmp(argv[i], "--no-reuse") == 0) reuse_disabled = true;
+        if (std::strcmp(argv[i], "--sync-batch") == 0) sync_batch = true;
         if (std::strncmp(argv[i], "--reuse-margin=", 15) == 0) reuse_margin = std::atoi(argv[i] + 15);
         if (std::strncmp(argv[i], "--num-requests=", 15) == 0) num_requests = std::atoi(argv[i] + 15);
         if (std::strncmp(argv[i], "--seed=", 7) == 0) seed = std::atol(argv[i] + 7);
         if (std::strncmp(argv[i], "--max-new=", 10) == 0) max_new = std::atoi(argv[i] + 10);
         if (std::strncmp(argv[i], "--n-seq=", 8) == 0) n_seq = std::atoi(argv[i] + 8);
         if (std::strncmp(argv[i], "--blocks=", 9) == 0) num_blocks = std::atoi(argv[i] + 9);
+        if (std::strncmp(argv[i], "--corpus=", 9) == 0) corpus_path = argv[i] + 9;
         if (std::strncmp(argv[i], "--prompt-mix=", 13) == 0)
         {
             std::sscanf(argv[i] + 13, "%d/%d/%d", &mix_short, &mix_mid, &mix_long);
@@ -107,18 +112,35 @@ int main(int argc, char** argv) {
     // TTFT 一点不降。所以 dense 模型默认让控制面命中直接驱动 seq_cp，
     // hybrid/recurrent 由执行面自动禁用（循环状态不能按位置切）。
     // --no-reuse 保留给"基线对照"实验。
-    const bool reuse_enabled = exec.KvReuseSupported() && enable_prefix && !reuse_disabled;
+    // 默认关闭：开启后 p50 可降约 34%（100 请求 trace），但长前缀下 greedy 采样
+    // 可能翻转（见实验 4）。性能与正确性的开关交给调用方，默认选正确。
+    const bool reuse_enabled = exec.KvReuseSupported() && enable_prefix && enable_kv_reuse && !reuse_disabled;
     exec.SetChunkTokens(reuse_enabled ? config.block_size : 0);
 
     FCFSScheduler sched;
     PagedBlockManager mgr(config);
     PrefixCache cache(&mgr, 0);
     SimulationLoop loop(config, sched, mgr, exec, enable_prefix ? &cache : nullptr);
+    loop.SetDecodeSyncBatch(sync_batch);
 
     // Agent 场景的典型特征：一长段共享 system prompt + 每轮不同的 user query。
     // trace 用三种长度的 system prompt 混合，模拟"短/中/长上下文"的真实分布。
     const int repeat_table[3] = {8, 24, 48};   // 约 80 / 240 / 480 token
     const int pct_table[3] = {mix_short, mix_mid, mix_long};
+
+    // 可选：从真实文本文件读 prompt 段落（每行一段），而不是用模板拼。
+    // 这样 trace 的"内容"来自真实语料，只有长度分布是受控的。
+    std::vector<std::string> corpus;
+    if (!corpus_path.empty())
+    {
+        std::ifstream in(corpus_path);
+        std::string line;
+        while (std::getline(in, line))
+        {
+            if (line.size() >= 80) corpus.push_back(line);
+        }
+        std::fprintf(stderr, "[trace] corpus=%s lines=%zu\n", corpus_path.c_str(), corpus.size());
+    }
 
     std::mt19937 rng(static_cast<std::uint32_t>(seed));
     std::uniform_int_distribution<int> pick(0, 99);
@@ -133,8 +155,22 @@ int main(int argc, char** argv) {
         else bucket = 2;
 
         std::string system_prompt;
-        for (int k = 0; k < repeat_table[bucket]; ++k) {
-            system_prompt += "You are a careful assistant for retrieval augmented generation. ";
+        if (!corpus.empty())
+        {
+            // 真实语料：取一段（按 repeat 数近似控制长度）
+            const std::size_t idx = static_cast<std::size_t>(pick(rng)) % corpus.size();
+            std::string body = corpus[idx];
+            for (int k = 0; k < repeat_table[bucket] / 8; ++k)
+            {
+                body += " " + corpus[(idx + static_cast<std::size_t>(k) + 1) % corpus.size()];
+            }
+            system_prompt = body;
+        }
+        else
+        {
+            for (int k = 0; k < repeat_table[bucket]; ++k) {
+                system_prompt += "You are a careful assistant for retrieval augmented generation. ";
+            }
         }
 
         // 为什么不用"某国首都是哪"这种问法：模型一句话就 EOS，请求在 prefill 阶段

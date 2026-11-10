@@ -16,9 +16,14 @@
 #include "TraceReplayer.h"
 
 #include <cstdio>
+#include <cstring>
 #include <vector>
 
 using namespace agentinferkv;
+static agentinferkv::SimulationLoop::PreemptPolicy g_policy =
+    agentinferkv::SimulationLoop::PreemptPolicy::Self;
+static bool g_sync_batch = false;
+
 
 namespace
 {
@@ -55,6 +60,8 @@ namespace
         Manager mgr(cfg);
         SimulatedExecutor exec(exec_cfg);
         SimulationLoop loop(cfg, sched, mgr, exec);
+        loop.SetPreemptPolicy(g_policy);
+        loop.SetDecodeSyncBatch(g_sync_batch);
 
         SimulationResult result = loop.Run(BuildRequests(trace));
 
@@ -110,12 +117,27 @@ namespace
     }
 }
 
-int main()
+int main(int argc, char** argv)
 {
     // 用 SimulatedExecutor 的默认系数：它们来自真实 GPU 实测拟合
     // （RTX 4060 + Qwen2.5-0.5B，见 include/SimulatedExecutor.h 与 tools/calibrate_executor.cpp）。
     // 早期这里手写过 0.001/0.0001/0.0005/0.00002 一组"定性"系数，
     // 结果和真实测量对不上，等于两套数字打架——已删除。
+    for (int i = 1; i < argc; ++i)
+    {
+        if (std::strcmp(argv[i], "--sync-batch") == 0) g_sync_batch = true;
+        if (std::strncmp(argv[i], "--preempt=", 10) == 0)
+        {
+            const char* v = argv[i] + 10;
+            g_policy = (std::strcmp(v, "victim") == 0)
+                ? agentinferkv::SimulationLoop::PreemptPolicy::Victim
+                : agentinferkv::SimulationLoop::PreemptPolicy::Self;
+        }
+    }
+    std::printf("preempt_policy=%s decode_batch=%s\n",
+        g_policy == agentinferkv::SimulationLoop::PreemptPolicy::Victim ? "victim" : "self",
+        g_sync_batch ? "sync" : "continuous");
+
     ExecutorConfig exec_cfg;
 
     // 6 个请求同时到达：prompt 20 + 最多生成 30 → 总 50 token

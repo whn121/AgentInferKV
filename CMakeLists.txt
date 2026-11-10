@@ -29,6 +29,14 @@ target_link_libraries(agentinferkv_demo PRIVATE agentinferkv_core)
 
 # 实验1：同预算下 Naive vs Paged 的可复现对比（README 的表由它产出）
 add_executable(agentinferkv_experiment1 src/experiment1.cpp)
+
+# 块 → 物理 cell 映射演示（证明"分页不是假的"）
+add_executable(agentinferkv_kvcell_demo tools/kv_cell_demo.cpp)
+
+# 最小 HTTP 服务（把外部请求接到控制面）
+add_executable(agentinferkv_http tools/http_server.cpp)
+target_link_libraries(agentinferkv_http PRIVATE agentinferkv_core)
+target_link_libraries(agentinferkv_kvcell_demo PRIVATE agentinferkv_core)
 target_link_libraries(agentinferkv_experiment1 PRIVATE agentinferkv_core)
 target_compile_options(agentinferkv_experiment1 PRIVATE -Wall -Wextra -Wpedantic)
 

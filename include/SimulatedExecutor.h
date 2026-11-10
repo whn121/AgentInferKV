@@ -30,7 +30,10 @@ namespace agentinferkv
         double base_prefill_s = 0.005634;         // 5.63 ms（0.5B 实测拟合）
         double per_token_prefill_s = 0.000003094; // 3.09 µs/token
         double base_decode_s = 0.000633;          // 0.63 ms/token
-        double per_token_decode_s = 0.0;          // 实测 decode 与长度无关，故为 0
+        // decode 每步要扫全部历史 KV；这里需要一个随上下文增长的项，
+        // 否则连续 batch 与同步 batch 永远看不出差异（每批都等同一个常数）。
+        // 取 1us/token 作为线性近似（不是实测斜率，实测 decode 主要受固定开销主导）。
+        double per_token_decode_s = 0.000001;
     };
     
     // 模拟执行器：用公式返回耗时，不提交 GPU 任务

@@ -17,6 +17,7 @@ namespace agentinferkv
             Request req;
             BlockTableView view;
             double next_event_time;
+            bool preempted = false;   // 被本轮抢占，循环结束后统一移除
         };
 
         constexpr double kEps = 1e-9; // 1的-9次方
@@ -160,7 +161,66 @@ namespace agentinferkv
 
                     int new_total = r.req.PromptLen() + r.req.generated_tokens;
                     BlockTableView new_view;
-                    if (!block_mgr_.AppendToken(r.req.id, new_total, new_view)) 
+                    if (r.preempted) continue;
+
+                    // Victim 策略：优先抢"后到的、还没处理的"请求（LIFO），
+                    // 只选下标 > i 的，保证它不会已经进了本轮 decode_ready。
+                    bool resolved = false;
+                    if (preempt_policy_ == PreemptPolicy::Victim)
+                    {
+                        std::size_t victim = running.size();
+                        for (std::size_t k = i + 1; k < running.size(); ++k)
+                        {
+                            // 只能抢已经进入 decode 的请求：
+                            // prefill 阶段的请求还没做过 PrefixCache::Insert，
+                            // 对它调 Release 会错误地减掉别人的引用计数。
+                            if (running[k].preempted) continue;
+                            if (running[k].req.state != RequestState::kDecode) continue;
+                            if (victim == running.size() || running[k].req.id > running[victim].req.id)
+                            {
+                                victim = k;
+                            }
+                        }
+
+                        if (victim != running.size())
+                        {
+                            auto& v = running[victim];
+                            block_mgr_.Free(v.req.id);
+                            if (prefix_cache_ != nullptr)
+                            {
+                                prefix_cache_->Release(v.req.prompt_tokens, config_.block_size);
+                            }
+                            executor_.Release(v.req.id);
+                            v.preempted = true;
+
+                            Request again = v.req;
+                            again.state = RequestState::kWaiting;
+                            again.generated_tokens = 0;
+                            again.first_token_time = -1.0;
+                            again.finish_time = -1.0;
+                            again.arrival_time = sim_time + kEps;
+                            if (++preempt_count[again.id] <= kMaxPreemptPerRequest)
+                            {
+                                requeue.push_back(again);
+                                ++preempted_total;
+                            }
+                            else
+                            {
+                                again.state = RequestState::kCancelled;
+                                completed.push_back(again);
+                            }
+
+                            resolved = block_mgr_.AppendToken(r.req.id, new_total, new_view);
+                            if (resolved)
+                            {
+                                r.view = new_view;
+                                decode_ready.push_back(i);
+                                continue;
+                            }
+                        }
+                    }
+
+                    if (!resolved && !block_mgr_.AppendToken(r.req.id, new_total, new_view)) 
                     {
                         // ── Recompute 抢占（简化版：抢占"自己"）──
                         // 块不够时不再直接取消，而是释放自己的块、丢掉已生成 token、
@@ -213,6 +273,15 @@ namespace agentinferkv
                         batch_views.push_back(running[i].view);
                     }
                     std::vector<double> costs = executor_.DecodeBatch(batch_reqs, batch_views);
+
+                    // 同步 batch 对照：整批等最慢的那个。
+                    // 连续批处理下每个请求只等自己的耗时（costs[j] 原样使用）。
+                    if (decode_sync_batch_ && !costs.empty())
+                    {
+                        double worst = 0.0;
+                        for (double c : costs) worst = std::max(worst, c);
+                        for (double& c : costs) c = worst;
+                    }
                     for (std::size_t j = 0; j < decode_ready.size(); ++j) 
                     {
                         std::size_t idx = decode_ready[j];
@@ -254,6 +323,12 @@ namespace agentinferkv
                             }
                         }
                     }
+                }
+
+                // 把被 Victim 抢占的项加进待移除（它们已经被 Free/Release 过）
+                for (std::size_t k = 0; k < running.size(); ++k)
+                {
+                    if (running[k].preempted) to_remove.push_back(k);
                 }
 
                 for (auto it = to_remove.rbegin(); it != to_remove.rend(); ++it) 

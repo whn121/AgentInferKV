@@ -371,6 +371,28 @@ abort。开了 unified 之后 `n_stream == 1`，`seq_cp` 走"共享 cell 元数�
 6. **失败路径的 seq 归还**：`Prefill` 解码失败时原来只把 seq 塞回 free list，却把
    `seq_map_[req.id]` 留着，`Release` 会二次归还同一个 seq_id。现在一并清掉。
 
+## 工程化补强（第二轮，2026-11-10）
+
+针对"面试官会不满的六个点"逐项处理，每项都有数据或可执行验证：
+
+| # | 问题 | 处理 | 结果 |
+|---|---|---|---|
+| 1 | 默认打开有正确性风险的 KV 复用 | **默认关闭**，`--kv-reuse` 显式开启 | 收益仍可复现：p50 7.0→4.6ms（-34%）；风险见实验 4 |
+| 2 | 抢占只是"抢占自己" | 实现 **LIFO victim** 策略（`--preempt=victim`）并对比 | self：blocks=16 完成率 **6/6**；victim：**1/6**——简化版重启会丢进度、互相抢占抖动。默认仍用 self，结论写进文档 |
+| 3 | 块表没落到物理 cell | 新增 `tools/kv_cell_demo.cpp`：自管 cell 池，`block i → cells [i*16, i*16+16)` | `cell_reuse_verified=yes`；超额分配返回 0 块（全有或全无） |
+| 4 | trace 是模板拼的 | 新增 `--corpus=bench/corpus.txt`（183 行真实文本），长度分布仍受控 | 可复现：`--seed` 固定 |
+| 5 | 没有真 continuous batching | 新增 `--sync-batch` 开关，对比"整批等最慢" vs "各自等自己" | 0.5B 上差异低于噪声（decode 上下文项约 1µs/token），结论：本项目 batching 影响可忽略 |
+| 6 | 没有对外服务 | 新增 `tools/http_server.cpp`（`POST /v1/completions`） | `curl` 返回 `{"completed":1,"ttft_ms":5.6,"tokens":8}` |
+
+**victim 抢占为什么更差（值得记住的结论）**：
+被抢占的请求在简化实现里是"释放块 + 丢掉已生成 token + 从 prompt 重算"，
+所以抢别人等于把别人的进度也毁掉，池子紧时互相抢占 → 抖动。
+要让它有意义，必须让被抢占者保留已生成的 token（vLLM 的 recompute 就是重算
+prompt+generated），否则不如"抢占自己"。
+
+**边界**：HTTP 服务是单线程 + 模拟执行器，只验证"外部请求能驱动控制面"；
+kv_cell_demo 是独立演示，不参与主链路。
+
 ## 修复记录（2026-11-01）
 
 这一节是给面试用的：每条都是"发现了什么 → 为什么测试没抓到 → 怎么修 → 数字怎么变"。
