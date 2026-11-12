@@ -1,0 +1,1 @@
+/usr/bin/c++ -O3 -DNDEBUG CMakeFiles/agentinferkv_http.dir/tools/http_server.cpp.o -o agentinferkv_http  libagentinferkv_core.a 

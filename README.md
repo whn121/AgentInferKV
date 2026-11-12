@@ -396,6 +396,17 @@ abort。开了 unified 之后 `n_stream == 1`，`seq_cp` 走"共享 cell 元数�
 要让它有意义，必须让被抢占者保留已生成的 token（vLLM 的 recompute 就是重算
 prompt+generated），否则不如"抢占自己"。
 
+**预算按净需求扣（用户指出的缺陷）**：
+调度估算原来是 `BlocksForTokens(PromptLen)`，**没有减掉前缀命中**，
+所以命中率越高越容易被误拒（例如 40 token 的请求命中 32 token，实际只要 1 块，
+预算却扣 3 块）。已修：调度前先 `Match` 算出命中长度，估算改成
+`BlocksForTokens(PromptLen + resume - cached_prefix_len)`。
+
+**顺带一个实验方法坑**：把语料当 system prompt 用，会让每个请求前缀都不同、
+命中率掉到 0；改成"system prompt 共享 + 语料当用户问题"后命中率回到 99.8%
+（3799/3805）。另外注意：命中率变化会改变准入时序 → llama.cpp 的 batch 组成变化
+→ greedy 采样可能 EOS 提前，所以 TTFT 样本数会波动（这是 batch 形状敏感，不是缓存错）。
+
 **边界**：HTTP 服务是单线程 + 模拟执行器，只验证"外部请求能驱动控制面"；
 kv_cell_demo 是独立演示，不参与主链路。
 

@@ -354,6 +354,17 @@ namespace agentinferkv
             // 第五步, 调用 (用 BlockBudget 模拟扣减)
             // 预算副本由 Loop 从当前空闲块数和 block_size 拼出来
             // 不依赖 IBlockSpaceManager 提供 MakeBudget，避免每个实现重复拼装
+            // 调度前先做一次前缀匹配，把"能命中多少"算出来，
+            // 这样预算扣的才是【净需求】而不是整个 prompt。
+            if (prefix_cache_ != nullptr)
+            {
+                for (auto& w : waiting)
+                {
+                    auto m = prefix_cache_->Match(w.prompt_tokens, config_.block_size);
+                    w.cached_prefix_len = m.matched_tokens;
+                }
+            }
+
             BlockBudget budget;
             budget.free_blocks = block_mgr_.NumFreeBlocks();
             budget.blocks_needed = [this](const Request& r) 

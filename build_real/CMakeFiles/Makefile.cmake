@@ -43,6 +43,8 @@ set(CMAKE_DEPEND_INFO_FILES
   "CMakeFiles/agentinferkv_core.dir/DependInfo.cmake"
   "CMakeFiles/agentinferkv_demo.dir/DependInfo.cmake"
   "CMakeFiles/agentinferkv_experiment1.dir/DependInfo.cmake"
+  "CMakeFiles/agentinferkv_kvcell_demo.dir/DependInfo.cmake"
+  "CMakeFiles/agentinferkv_http.dir/DependInfo.cmake"
   "CMakeFiles/test_request.dir/DependInfo.cmake"
   "CMakeFiles/test_model_config.dir/DependInfo.cmake"
   "CMakeFiles/test_naive_preallocator.dir/DependInfo.cmake"

@@ -127,7 +127,11 @@ namespace agentinferkv
     
     int PagedBlockManager::EstimateBlocks(const Request& req) const 
     {
-        return config_.BlocksForTokens(req.PromptLen() + req.resume_tokens);
+        // 预算要按【净需求】估：命中前缀的部分可以直接共享，不该占预算。
+        // 否则命中率越高越容易被调度器误拒（这是用户指出的真实缺陷）。
+        int net = req.PromptLen() + req.resume_tokens - req.cached_prefix_len;
+        if (net < 0) net = 0;
+        return config_.BlocksForTokens(net);
     }
 
     int PagedBlockManager::TailUnusedCapacity() const 

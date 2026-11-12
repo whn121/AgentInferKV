@@ -1,0 +1,1 @@
+/usr/bin/c++ -O3 -DNDEBUG CMakeFiles/agentinferkv_kvcell_demo.dir/tools/kv_cell_demo.cpp.o -o agentinferkv_kvcell_demo  libagentinferkv_core.a 

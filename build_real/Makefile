@@ -166,6 +166,32 @@ agentinferkv_experiment1/fast:
 .PHONY : agentinferkv_experiment1/fast
 
 #=============================================================================
+# Target rules for targets named agentinferkv_kvcell_demo
+
+# Build rule for target.
+agentinferkv_kvcell_demo: cmake_check_build_system
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 agentinferkv_kvcell_demo
+.PHONY : agentinferkv_kvcell_demo
+
+# fast build rule for target.
+agentinferkv_kvcell_demo/fast:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/agentinferkv_kvcell_demo.dir/build.make CMakeFiles/agentinferkv_kvcell_demo.dir/build
+.PHONY : agentinferkv_kvcell_demo/fast
+
+#=============================================================================
+# Target rules for targets named agentinferkv_http
+
+# Build rule for target.
+agentinferkv_http: cmake_check_build_system
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 agentinferkv_http
+.PHONY : agentinferkv_http
+
+# fast build rule for target.
+agentinferkv_http/fast:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/agentinferkv_http.dir/build.make CMakeFiles/agentinferkv_http.dir/build
+.PHONY : agentinferkv_http/fast
+
+#=============================================================================
 # Target rules for targets named test_request
 
 # Build rule for target.
@@ -923,6 +949,54 @@ tools/calibrate_executor.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/agentinferkv_calibrate.dir/build.make CMakeFiles/agentinferkv_calibrate.dir/tools/calibrate_executor.cpp.s
 .PHONY : tools/calibrate_executor.cpp.s
 
+tools/http_server.o: tools/http_server.cpp.o
+.PHONY : tools/http_server.o
+
+# target to build an object file
+tools/http_server.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/agentinferkv_http.dir/build.make CMakeFiles/agentinferkv_http.dir/tools/http_server.cpp.o
+.PHONY : tools/http_server.cpp.o
+
+tools/http_server.i: tools/http_server.cpp.i
+.PHONY : tools/http_server.i
+
+# target to preprocess a source file
+tools/http_server.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/agentinferkv_http.dir/build.make CMakeFiles/agentinferkv_http.dir/tools/http_server.cpp.i
+.PHONY : tools/http_server.cpp.i
+
+tools/http_server.s: tools/http_server.cpp.s
+.PHONY : tools/http_server.s
+
+# target to generate assembly for a file
+tools/http_server.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/agentinferkv_http.dir/build.make CMakeFiles/agentinferkv_http.dir/tools/http_server.cpp.s
+.PHONY : tools/http_server.cpp.s
+
+tools/kv_cell_demo.o: tools/kv_cell_demo.cpp.o
+.PHONY : tools/kv_cell_demo.o
+
+# target to build an object file
+tools/kv_cell_demo.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/agentinferkv_kvcell_demo.dir/build.make CMakeFiles/agentinferkv_kvcell_demo.dir/tools/kv_cell_demo.cpp.o
+.PHONY : tools/kv_cell_demo.cpp.o
+
+tools/kv_cell_demo.i: tools/kv_cell_demo.cpp.i
+.PHONY : tools/kv_cell_demo.i
+
+# target to preprocess a source file
+tools/kv_cell_demo.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/agentinferkv_kvcell_demo.dir/build.make CMakeFiles/agentinferkv_kvcell_demo.dir/tools/kv_cell_demo.cpp.i
+.PHONY : tools/kv_cell_demo.cpp.i
+
+tools/kv_cell_demo.s: tools/kv_cell_demo.cpp.s
+.PHONY : tools/kv_cell_demo.s
+
+# target to generate assembly for a file
+tools/kv_cell_demo.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/agentinferkv_kvcell_demo.dir/build.make CMakeFiles/agentinferkv_kvcell_demo.dir/tools/kv_cell_demo.cpp.s
+.PHONY : tools/kv_cell_demo.cpp.s
+
 # Help Target
 help:
 	@echo "The following are some of the valid targets for this Makefile:"
@@ -937,6 +1011,8 @@ help:
 	@echo "... agentinferkv_demo"
 	@echo "... agentinferkv_demo_real"
 	@echo "... agentinferkv_experiment1"
+	@echo "... agentinferkv_http"
+	@echo "... agentinferkv_kvcell_demo"
 	@echo "... agentinferkv_llama"
 	@echo "... test_fcfs_scheduler"
 	@echo "... test_lru_eviction"
@@ -1021,6 +1097,12 @@ help:
 	@echo "... tools/calibrate_executor.o"
 	@echo "... tools/calibrate_executor.i"
 	@echo "... tools/calibrate_executor.s"
+	@echo "... tools/http_server.o"
+	@echo "... tools/http_server.i"
+	@echo "... tools/http_server.s"
+	@echo "... tools/kv_cell_demo.o"
+	@echo "... tools/kv_cell_demo.i"
+	@echo "... tools/kv_cell_demo.s"
 .PHONY : help
 
 

@@ -1,6 +1,8 @@
 /home/whn/AgentInferKV/build_real/CMakeFiles/agentinferkv_core.dir
 /home/whn/AgentInferKV/build_real/CMakeFiles/agentinferkv_demo.dir
 /home/whn/AgentInferKV/build_real/CMakeFiles/agentinferkv_experiment1.dir
+/home/whn/AgentInferKV/build_real/CMakeFiles/agentinferkv_kvcell_demo.dir
+/home/whn/AgentInferKV/build_real/CMakeFiles/agentinferkv_http.dir
 /home/whn/AgentInferKV/build_real/CMakeFiles/test_request.dir
 /home/whn/AgentInferKV/build_real/CMakeFiles/test_model_config.dir
 /home/whn/AgentInferKV/build_real/CMakeFiles/test_naive_preallocator.dir

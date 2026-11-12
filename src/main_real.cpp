@@ -154,30 +154,28 @@ int main(int argc, char** argv) {
         else if (roll < pct_table[0] + pct_table[1]) bucket = 1;
         else bucket = 2;
 
+        // system prompt 必须在请求之间共享（Agent 场景的核心特征），
+        // 否则前缀命中率会掉到 0——第一版把语料当 system prompt，就踩了这个坑。
         std::string system_prompt;
-        if (!corpus.empty())
-        {
-            // 真实语料：取一段（按 repeat 数近似控制长度）
-            const std::size_t idx = static_cast<std::size_t>(pick(rng)) % corpus.size();
-            std::string body = corpus[idx];
-            for (int k = 0; k < repeat_table[bucket] / 8; ++k)
-            {
-                body += " " + corpus[(idx + static_cast<std::size_t>(k) + 1) % corpus.size()];
-            }
-            system_prompt = body;
-        }
-        else
-        {
-            for (int k = 0; k < repeat_table[bucket]; ++k) {
-                system_prompt += "You are a careful assistant for retrieval augmented generation. ";
-            }
+        for (int k = 0; k < repeat_table[bucket]; ++k) {
+            system_prompt += "You are a careful assistant for retrieval augmented generation. ";
         }
 
         // 为什么不用"某国首都是哪"这种问法：模型一句话就 EOS，请求在 prefill 阶段
         // 就结束、根本不产生 TTFT 样本。trace 实验要让每个请求稳定生成，
         // 所以要求"用二十个词描述"，保证 decode 步数可测。
-        const std::string uq = "Describe country number " + std::to_string(i) +
-                               " in about twenty words, in one sentence.";
+        // 用户问题用真实语料（每请求不同），保证 system prompt 共享、问题不同。
+        std::string uq;
+        if (!corpus.empty())
+        {
+            const std::size_t idx = (static_cast<std::size_t>(pick(rng)) + static_cast<std::size_t>(i)) % corpus.size();
+            uq = corpus[idx] + " Answer in about twenty words.";
+        }
+        else
+        {
+            uq = "Describe country number " + std::to_string(i) +
+                 " in about twenty words, in one sentence.";
+        }
 
         Request r;
         r.id = static_cast<RequestId>(i);
