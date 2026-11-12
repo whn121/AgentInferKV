@@ -17,6 +17,7 @@ add_library(agentinferkv_core
   src/NaivePreallocator.cpp
   src/TraceReplayer.cpp
   src/SimulatedExecutor.cpp
+    src/SimulatedCellExecutor.cpp
   src/SimulationLoop.cpp
   src/PagedBlockManager.cpp
   src/PrefixCache.cpp
@@ -32,6 +33,10 @@ add_executable(agentinferkv_experiment1 src/experiment1.cpp)
 
 # 块 → 物理 cell 映射演示（证明"分页不是假的"）
 add_executable(agentinferkv_kvcell_demo tools/kv_cell_demo.cpp)
+
+# L1：自管 cell 池的执行器（块→物理区间，统计 KV 写入量）
+add_executable(agentinferkv_cell_demo src/experiment6.cpp)
+target_link_libraries(agentinferkv_cell_demo PRIVATE agentinferkv_core)
 
 # 最小 HTTP 服务（把外部请求接到控制面）
 add_executable(agentinferkv_http tools/http_server.cpp)

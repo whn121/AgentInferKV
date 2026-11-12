@@ -217,6 +217,15 @@ namespace agentinferkv
             (void)id;
             return {};
         }
+
+        // 块表更新钩子：控制面在 Allocate / AppendToken 之后通知执行器。
+        // 自管 cell 池的执行器需要它来把逻辑块映射到真实内存区间；
+        // llama.cpp 执行器不需要（它自己管 seq）。
+        virtual void OnBlocksAssigned(RequestId id, const BlockTableView& view)
+        {
+            (void)id;
+            (void)view;
+        }
     };
 
 }
