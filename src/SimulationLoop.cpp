@@ -22,7 +22,19 @@ namespace agentinferkv
 
         constexpr double kEps = 1e-9; // 1的-9次方
     // 单个请求最多被抢占几次：防活锁（块永远不够时不能无限重排队）
-    constexpr int kMaxPreemptPerRequest = 2;
+    // 抢占上限：按 prompt 长度自适应（短请求 2 次，长请求最多 8 次）。
+    // 长请求重算成本高、更容易因块不足被反复抢占，给更多机会；
+    // 上限防止"抢占-重排-再抢占"的活锁。
+    constexpr int kMinPreemptPerRequest = 2;
+    constexpr int kMaxPreemptPerRequest = 8;
+
+    static int MaxPreemptsFor(const Request& r)
+    {
+        const int tokens = r.PromptLen() + r.resume_tokens;
+        const int by_size = (tokens + 127) / 128;   // 每 128 token 加 1 次
+        const int limit = kMinPreemptPerRequest + by_size;
+        return limit < kMaxPreemptPerRequest ? limit : kMaxPreemptPerRequest;
+    }
     }
 
     SimulationLoop::SimulationLoop(ModelConfig config, IScheduler& scheduler, IBlockSpaceManager& block_mgr
@@ -204,7 +216,7 @@ namespace agentinferkv
                             again.first_token_time = -1.0;
                             again.finish_time = -1.0;
                             again.arrival_time = sim_time + kEps;
-                            if (++preempt_count[again.id] <= kMaxPreemptPerRequest)
+                            if (++preempt_count[again.id] <= MaxPreemptsFor(again))
                             {
                                 requeue.push_back(again);
                                 ++preempted_total;
@@ -252,7 +264,7 @@ namespace agentinferkv
                         // 推迟到达时间 → 排到队尾，避免"立刻又被选中、反复抢占自己"
                         again.arrival_time = sim_time + kEps;
 
-                        if (++preempt_count[again.id] <= kMaxPreemptPerRequest)
+                        if (++preempt_count[again.id] <= MaxPreemptsFor(again))
                         {
                             requeue.push_back(again);
                             ++preempted_total;
