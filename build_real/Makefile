@@ -179,6 +179,19 @@ agentinferkv_kvcell_demo/fast:
 .PHONY : agentinferkv_kvcell_demo/fast
 
 #=============================================================================
+# Target rules for targets named agentinferkv_cell_demo
+
+# Build rule for target.
+agentinferkv_cell_demo: cmake_check_build_system
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 agentinferkv_cell_demo
+.PHONY : agentinferkv_cell_demo
+
+# fast build rule for target.
+agentinferkv_cell_demo/fast:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/agentinferkv_cell_demo.dir/build.make CMakeFiles/agentinferkv_cell_demo.dir/build
+.PHONY : agentinferkv_cell_demo/fast
+
+#=============================================================================
 # Target rules for targets named agentinferkv_http
 
 # Build rule for target.
@@ -333,6 +346,19 @@ test_lru_eviction: cmake_check_build_system
 test_lru_eviction/fast:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/test_lru_eviction.dir/build.make CMakeFiles/test_lru_eviction.dir/build
 .PHONY : test_lru_eviction/fast
+
+#=============================================================================
+# Target rules for targets named test_running_reservation
+
+# Build rule for target.
+test_running_reservation: cmake_check_build_system
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 test_running_reservation
+.PHONY : test_running_reservation
+
+# fast build rule for target.
+test_running_reservation/fast:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/test_running_reservation.dir/build.make CMakeFiles/test_running_reservation.dir/build
+.PHONY : test_running_reservation/fast
 
 #=============================================================================
 # Target rules for targets named agentinferkv_llama
@@ -517,6 +543,30 @@ src/Request.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/agentinferkv_core.dir/build.make CMakeFiles/agentinferkv_core.dir/src/Request.cpp.s
 .PHONY : src/Request.cpp.s
 
+src/SimulatedCellExecutor.o: src/SimulatedCellExecutor.cpp.o
+.PHONY : src/SimulatedCellExecutor.o
+
+# target to build an object file
+src/SimulatedCellExecutor.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/agentinferkv_core.dir/build.make CMakeFiles/agentinferkv_core.dir/src/SimulatedCellExecutor.cpp.o
+.PHONY : src/SimulatedCellExecutor.cpp.o
+
+src/SimulatedCellExecutor.i: src/SimulatedCellExecutor.cpp.i
+.PHONY : src/SimulatedCellExecutor.i
+
+# target to preprocess a source file
+src/SimulatedCellExecutor.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/agentinferkv_core.dir/build.make CMakeFiles/agentinferkv_core.dir/src/SimulatedCellExecutor.cpp.i
+.PHONY : src/SimulatedCellExecutor.cpp.i
+
+src/SimulatedCellExecutor.s: src/SimulatedCellExecutor.cpp.s
+.PHONY : src/SimulatedCellExecutor.s
+
+# target to generate assembly for a file
+src/SimulatedCellExecutor.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/agentinferkv_core.dir/build.make CMakeFiles/agentinferkv_core.dir/src/SimulatedCellExecutor.cpp.s
+.PHONY : src/SimulatedCellExecutor.cpp.s
+
 src/SimulatedExecutor.o: src/SimulatedExecutor.cpp.o
 .PHONY : src/SimulatedExecutor.o
 
@@ -612,6 +662,30 @@ src/experiment1.s: src/experiment1.cpp.s
 src/experiment1.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/agentinferkv_experiment1.dir/build.make CMakeFiles/agentinferkv_experiment1.dir/src/experiment1.cpp.s
 .PHONY : src/experiment1.cpp.s
+
+src/experiment6.o: src/experiment6.cpp.o
+.PHONY : src/experiment6.o
+
+# target to build an object file
+src/experiment6.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/agentinferkv_cell_demo.dir/build.make CMakeFiles/agentinferkv_cell_demo.dir/src/experiment6.cpp.o
+.PHONY : src/experiment6.cpp.o
+
+src/experiment6.i: src/experiment6.cpp.i
+.PHONY : src/experiment6.i
+
+# target to preprocess a source file
+src/experiment6.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/agentinferkv_cell_demo.dir/build.make CMakeFiles/agentinferkv_cell_demo.dir/src/experiment6.cpp.i
+.PHONY : src/experiment6.cpp.i
+
+src/experiment6.s: src/experiment6.cpp.s
+.PHONY : src/experiment6.s
+
+# target to generate assembly for a file
+src/experiment6.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/agentinferkv_cell_demo.dir/build.make CMakeFiles/agentinferkv_cell_demo.dir/src/experiment6.cpp.s
+.PHONY : src/experiment6.cpp.s
 
 src/main.o: src/main.cpp.o
 .PHONY : src/main.o
@@ -877,6 +951,30 @@ tests/test_request.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/test_request.dir/build.make CMakeFiles/test_request.dir/tests/test_request.cpp.s
 .PHONY : tests/test_request.cpp.s
 
+tests/test_running_reservation.o: tests/test_running_reservation.cpp.o
+.PHONY : tests/test_running_reservation.o
+
+# target to build an object file
+tests/test_running_reservation.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/test_running_reservation.dir/build.make CMakeFiles/test_running_reservation.dir/tests/test_running_reservation.cpp.o
+.PHONY : tests/test_running_reservation.cpp.o
+
+tests/test_running_reservation.i: tests/test_running_reservation.cpp.i
+.PHONY : tests/test_running_reservation.i
+
+# target to preprocess a source file
+tests/test_running_reservation.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/test_running_reservation.dir/build.make CMakeFiles/test_running_reservation.dir/tests/test_running_reservation.cpp.i
+.PHONY : tests/test_running_reservation.cpp.i
+
+tests/test_running_reservation.s: tests/test_running_reservation.cpp.s
+.PHONY : tests/test_running_reservation.s
+
+# target to generate assembly for a file
+tests/test_running_reservation.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/test_running_reservation.dir/build.make CMakeFiles/test_running_reservation.dir/tests/test_running_reservation.cpp.s
+.PHONY : tests/test_running_reservation.cpp.s
+
 tests/test_simulated_executor.o: tests/test_simulated_executor.cpp.o
 .PHONY : tests/test_simulated_executor.o
 
@@ -1007,6 +1105,7 @@ help:
 	@echo "... rebuild_cache"
 	@echo "... test"
 	@echo "... agentinferkv_calibrate"
+	@echo "... agentinferkv_cell_demo"
 	@echo "... agentinferkv_core"
 	@echo "... agentinferkv_demo"
 	@echo "... agentinferkv_demo_real"
@@ -1023,6 +1122,7 @@ help:
 	@echo "... test_prefix_cache"
 	@echo "... test_prefix_sharing"
 	@echo "... test_request"
+	@echo "... test_running_reservation"
 	@echo "... test_simulated_executor"
 	@echo "... test_simulation_loop"
 	@echo "... src/FCFSScheduler.o"
@@ -1043,6 +1143,9 @@ help:
 	@echo "... src/Request.o"
 	@echo "... src/Request.i"
 	@echo "... src/Request.s"
+	@echo "... src/SimulatedCellExecutor.o"
+	@echo "... src/SimulatedCellExecutor.i"
+	@echo "... src/SimulatedCellExecutor.s"
 	@echo "... src/SimulatedExecutor.o"
 	@echo "... src/SimulatedExecutor.i"
 	@echo "... src/SimulatedExecutor.s"
@@ -1055,6 +1158,9 @@ help:
 	@echo "... src/experiment1.o"
 	@echo "... src/experiment1.i"
 	@echo "... src/experiment1.s"
+	@echo "... src/experiment6.o"
+	@echo "... src/experiment6.i"
+	@echo "... src/experiment6.s"
 	@echo "... src/main.o"
 	@echo "... src/main.i"
 	@echo "... src/main.s"
@@ -1088,6 +1194,9 @@ help:
 	@echo "... tests/test_request.o"
 	@echo "... tests/test_request.i"
 	@echo "... tests/test_request.s"
+	@echo "... tests/test_running_reservation.o"
+	@echo "... tests/test_running_reservation.i"
+	@echo "... tests/test_running_reservation.s"
 	@echo "... tests/test_simulated_executor.o"
 	@echo "... tests/test_simulated_executor.i"
 	@echo "... tests/test_simulated_executor.s"

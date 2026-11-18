@@ -1,3 +1,18 @@
+## KV 量化（`--kv-type=f16|q8_0|q4_0`）
+
+只改 KV 的存储精度，权重仍是模型文件里的 Q4：q8_0 每元素 1 字节（fp16 的一半），
+q4_0 约 0.5 字节。`ModelConfig::KvBytesPerToken()` 会同步调整，块池容量/预算估算保持一致。
+
+实测（Qwen2.5-0.5B Q4_K_M，2 请求 / max_new=2 / --no-reuse）：
+
+| kv-type | kv_bytes_per_token | token_digest | TTFT p50 |
+|---|---|---|---|
+| f16 | 12288 | r1/r2 一致 | 8.5 ms |
+| q8_0 | 6144（-50%） | r1/r2 一致 | 9.4 ms |
+
+边界：样本小（2 请求、短 prompt），只能证明"可运行且本次输出一致"；
+长上下文/大批量下的精度差异需要用 `--verify-reuse` 或更大样本单独测，不能外推。
+
 ## running 预留（避免 decode 扩块被新请求抢走）
 
 `SimulationLoop` 在调度前先看每个 running 请求"下一步 decode 是否跨块"

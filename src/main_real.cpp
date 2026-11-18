@@ -33,6 +33,7 @@ int main(int argc, char** argv) {
         std::fprintf(stderr, "  --no-reuse     关闭执行面 seq_cp 复用（基线对照用）\n");
         std::fprintf(stderr, "  --n-seq=N      并发 seq 上限（默认 16；统一 KV 下每 seq 可用 ctx/N）\n");
         std::fprintf(stderr, "  --blocks=N     KV 块池大小（默认 64，每块 16 token）\n");
+        std::fprintf(stderr, "  --kv-type=T    KV 精度：f16/q8_0/q4_0（默认 f16）\n");
         return 1;
     }
     std::string model_path = argv[1];
@@ -56,6 +57,7 @@ int main(int argc, char** argv) {
     int max_new = 5;
     int n_seq = 16;
     int num_blocks = 64;
+    std::string kv_type = "f16";   // f16 / q8_0 / q4_0
     std::string corpus_path;   // 非空则从真实文本文件取 prompt
     for (int i = 2; i < argc; ++i) {
         if (std::strcmp(argv[i], "--no-prefix") == 0) enable_prefix = false;
@@ -75,6 +77,7 @@ int main(int argc, char** argv) {
         if (std::strncmp(argv[i], "--max-new=", 10) == 0) max_new = std::atoi(argv[i] + 10);
         if (std::strncmp(argv[i], "--n-seq=", 8) == 0) n_seq = std::atoi(argv[i] + 8);
         if (std::strncmp(argv[i], "--blocks=", 9) == 0) num_blocks = std::atoi(argv[i] + 9);
+        else if (std::strncmp(argv[i], "--kv-type=", 10) == 0) kv_type = argv[i] + 10;
         if (std::strncmp(argv[i], "--corpus=", 9) == 0) corpus_path = argv[i] + 9;
         if (std::strncmp(argv[i], "--prompt-mix=", 13) == 0)
         {
@@ -90,7 +93,7 @@ int main(int argc, char** argv) {
     if (num_requests < 1) num_requests = 1;
     if (num_blocks < 4) num_blocks = 4;
     if (n_seq < 1) n_seq = 1;
-    LlamaCppExecutor exec(model_path, 99, n_ctx, n_seq);
+    LlamaCppExecutor exec(model_path, 99, n_ctx, n_seq, kv_type);
     exec.SetVerifyReuse(verify_reuse);
     exec.SetReuseMargin(reuse_margin);
     exec.SetMaxPinnedSeqs(static_cast<std::size_t>(max_pinned > 0 ? max_pinned : 1));
@@ -99,7 +102,8 @@ int main(int argc, char** argv) {
     config.num_layers = exec.NumLayers();
     config.num_kv_heads = exec.NumKvHeads();
     config.head_dim = exec.HeadDim();
-    config.dtype_bytes = 2;
+    // KV 量化后每元素 1 字节（q4_0 实际 0.5，这里保守按 1 算）
+    config.dtype_bytes = (kv_type == "q8_0" || kv_type == "q4_0") ? 1 : 2;
     config.block_size = 16;
     config.num_blocks = num_blocks;
 

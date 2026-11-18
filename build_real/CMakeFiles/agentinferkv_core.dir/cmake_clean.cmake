@@ -9,6 +9,8 @@ file(REMOVE_RECURSE
   "CMakeFiles/agentinferkv_core.dir/src/PrefixCache.cpp.o.d"
   "CMakeFiles/agentinferkv_core.dir/src/Request.cpp.o"
   "CMakeFiles/agentinferkv_core.dir/src/Request.cpp.o.d"
+  "CMakeFiles/agentinferkv_core.dir/src/SimulatedCellExecutor.cpp.o"
+  "CMakeFiles/agentinferkv_core.dir/src/SimulatedCellExecutor.cpp.o.d"
   "CMakeFiles/agentinferkv_core.dir/src/SimulatedExecutor.cpp.o"
   "CMakeFiles/agentinferkv_core.dir/src/SimulatedExecutor.cpp.o.d"
   "CMakeFiles/agentinferkv_core.dir/src/SimulationLoop.cpp.o"

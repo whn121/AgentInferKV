@@ -11,8 +11,9 @@
 namespace agentinferkv 
 {
 
-    LlamaCppExecutor::LlamaCppExecutor(const std::string& model_path, int n_gpu_layers, int n_ctx, int n_seq_max)
-         : n_seq_max_ (n_seq_max), n_ctx_ (n_ctx)
+    LlamaCppExecutor::LlamaCppExecutor(const std::string& model_path, int n_gpu_layers, int n_ctx, int n_seq_max
+                                     , const std::string& kv_type)
+         : n_seq_max_ (n_seq_max), n_ctx_ (n_ctx), kv_type_ (kv_type)
     {
         llama_backend_init();
 
@@ -58,6 +59,15 @@ namespace agentinferkv
         // 跨请求 KV 复用才成立；否则 n_stream == n_seq_max，跨 stream
         // 复制只支持整块，p1 取中间值会直接 GGML_ASSERT abort。
         cparams.kv_unified = kv_reuse_supported_;
+
+        // KV 量化：只改 KV 的存储精度，权重仍是模型文件里的 Q4。
+        // q8_0：每元素 1 字节（fp16 的一半）；q4_0：0.5 字节。
+        if (kv_type == "q8_0") { cparams.type_k = GGML_TYPE_Q8_0; cparams.type_v = GGML_TYPE_Q8_0; }
+        else if (kv_type == "q4_0") { cparams.type_k = GGML_TYPE_Q4_0; cparams.type_v = GGML_TYPE_Q4_0; }
+        else if (kv_type != "f16" && !kv_type.empty())
+        {
+            std::fprintf(stderr, "[LlamaCppExecutor] unknown kv_type=%s, fallback f16\n", kv_type.c_str());
+        }
         ctx_ = llama_init_from_model(model_, cparams);
         if (ctx_ == nullptr) 
         {
@@ -364,6 +374,8 @@ namespace agentinferkv
                     vp.n_batch = 512;
                     vp.n_seq_max = 1;
                     vp.kv_unified = true;
+                    if (kv_type_ == "q8_0") { vp.type_k = GGML_TYPE_Q8_0; vp.type_v = GGML_TYPE_Q8_0; }
+                    else if (kv_type_ == "q4_0") { vp.type_k = GGML_TYPE_Q4_0; vp.type_v = GGML_TYPE_Q4_0; }
                     verify_ctx_ = llama_init_from_model(model_, vp);
                 }
 

@@ -139,10 +139,24 @@ CMakeFiles/agentinferkv_core.dir/src/SimulatedExecutor.cpp.s: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/agentinferkv_core.dir/src/SimulatedExecutor.cpp.s"
 	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/whn/AgentInferKV/src/SimulatedExecutor.cpp -o CMakeFiles/agentinferkv_core.dir/src/SimulatedExecutor.cpp.s
 
+CMakeFiles/agentinferkv_core.dir/src/SimulatedCellExecutor.cpp.o: CMakeFiles/agentinferkv_core.dir/flags.make
+CMakeFiles/agentinferkv_core.dir/src/SimulatedCellExecutor.cpp.o: /home/whn/AgentInferKV/src/SimulatedCellExecutor.cpp
+CMakeFiles/agentinferkv_core.dir/src/SimulatedCellExecutor.cpp.o: CMakeFiles/agentinferkv_core.dir/compiler_depend.ts
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/whn/AgentInferKV/build_real/CMakeFiles --progress-num=$(CMAKE_PROGRESS_6) "Building CXX object CMakeFiles/agentinferkv_core.dir/src/SimulatedCellExecutor.cpp.o"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/agentinferkv_core.dir/src/SimulatedCellExecutor.cpp.o -MF CMakeFiles/agentinferkv_core.dir/src/SimulatedCellExecutor.cpp.o.d -o CMakeFiles/agentinferkv_core.dir/src/SimulatedCellExecutor.cpp.o -c /home/whn/AgentInferKV/src/SimulatedCellExecutor.cpp
+
+CMakeFiles/agentinferkv_core.dir/src/SimulatedCellExecutor.cpp.i: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing CXX source to CMakeFiles/agentinferkv_core.dir/src/SimulatedCellExecutor.cpp.i"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/whn/AgentInferKV/src/SimulatedCellExecutor.cpp > CMakeFiles/agentinferkv_core.dir/src/SimulatedCellExecutor.cpp.i
+
+CMakeFiles/agentinferkv_core.dir/src/SimulatedCellExecutor.cpp.s: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/agentinferkv_core.dir/src/SimulatedCellExecutor.cpp.s"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/whn/AgentInferKV/src/SimulatedCellExecutor.cpp -o CMakeFiles/agentinferkv_core.dir/src/SimulatedCellExecutor.cpp.s
+
 CMakeFiles/agentinferkv_core.dir/src/SimulationLoop.cpp.o: CMakeFiles/agentinferkv_core.dir/flags.make
 CMakeFiles/agentinferkv_core.dir/src/SimulationLoop.cpp.o: /home/whn/AgentInferKV/src/SimulationLoop.cpp
 CMakeFiles/agentinferkv_core.dir/src/SimulationLoop.cpp.o: CMakeFiles/agentinferkv_core.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/whn/AgentInferKV/build_real/CMakeFiles --progress-num=$(CMAKE_PROGRESS_6) "Building CXX object CMakeFiles/agentinferkv_core.dir/src/SimulationLoop.cpp.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/whn/AgentInferKV/build_real/CMakeFiles --progress-num=$(CMAKE_PROGRESS_7) "Building CXX object CMakeFiles/agentinferkv_core.dir/src/SimulationLoop.cpp.o"
 	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/agentinferkv_core.dir/src/SimulationLoop.cpp.o -MF CMakeFiles/agentinferkv_core.dir/src/SimulationLoop.cpp.o.d -o CMakeFiles/agentinferkv_core.dir/src/SimulationLoop.cpp.o -c /home/whn/AgentInferKV/src/SimulationLoop.cpp
 
 CMakeFiles/agentinferkv_core.dir/src/SimulationLoop.cpp.i: cmake_force
@@ -156,7 +170,7 @@ CMakeFiles/agentinferkv_core.dir/src/SimulationLoop.cpp.s: cmake_force
 CMakeFiles/agentinferkv_core.dir/src/PagedBlockManager.cpp.o: CMakeFiles/agentinferkv_core.dir/flags.make
 CMakeFiles/agentinferkv_core.dir/src/PagedBlockManager.cpp.o: /home/whn/AgentInferKV/src/PagedBlockManager.cpp
 CMakeFiles/agentinferkv_core.dir/src/PagedBlockManager.cpp.o: CMakeFiles/agentinferkv_core.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/whn/AgentInferKV/build_real/CMakeFiles --progress-num=$(CMAKE_PROGRESS_7) "Building CXX object CMakeFiles/agentinferkv_core.dir/src/PagedBlockManager.cpp.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/whn/AgentInferKV/build_real/CMakeFiles --progress-num=$(CMAKE_PROGRESS_8) "Building CXX object CMakeFiles/agentinferkv_core.dir/src/PagedBlockManager.cpp.o"
 	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/agentinferkv_core.dir/src/PagedBlockManager.cpp.o -MF CMakeFiles/agentinferkv_core.dir/src/PagedBlockManager.cpp.o.d -o CMakeFiles/agentinferkv_core.dir/src/PagedBlockManager.cpp.o -c /home/whn/AgentInferKV/src/PagedBlockManager.cpp
 
 CMakeFiles/agentinferkv_core.dir/src/PagedBlockManager.cpp.i: cmake_force
@@ -170,7 +184,7 @@ CMakeFiles/agentinferkv_core.dir/src/PagedBlockManager.cpp.s: cmake_force
 CMakeFiles/agentinferkv_core.dir/src/PrefixCache.cpp.o: CMakeFiles/agentinferkv_core.dir/flags.make
 CMakeFiles/agentinferkv_core.dir/src/PrefixCache.cpp.o: /home/whn/AgentInferKV/src/PrefixCache.cpp
 CMakeFiles/agentinferkv_core.dir/src/PrefixCache.cpp.o: CMakeFiles/agentinferkv_core.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/whn/AgentInferKV/build_real/CMakeFiles --progress-num=$(CMAKE_PROGRESS_8) "Building CXX object CMakeFiles/agentinferkv_core.dir/src/PrefixCache.cpp.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/whn/AgentInferKV/build_real/CMakeFiles --progress-num=$(CMAKE_PROGRESS_9) "Building CXX object CMakeFiles/agentinferkv_core.dir/src/PrefixCache.cpp.o"
 	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/agentinferkv_core.dir/src/PrefixCache.cpp.o -MF CMakeFiles/agentinferkv_core.dir/src/PrefixCache.cpp.o.d -o CMakeFiles/agentinferkv_core.dir/src/PrefixCache.cpp.o -c /home/whn/AgentInferKV/src/PrefixCache.cpp
 
 CMakeFiles/agentinferkv_core.dir/src/PrefixCache.cpp.i: cmake_force
@@ -188,6 +202,7 @@ agentinferkv_core_OBJECTS = \
 "CMakeFiles/agentinferkv_core.dir/src/NaivePreallocator.cpp.o" \
 "CMakeFiles/agentinferkv_core.dir/src/TraceReplayer.cpp.o" \
 "CMakeFiles/agentinferkv_core.dir/src/SimulatedExecutor.cpp.o" \
+"CMakeFiles/agentinferkv_core.dir/src/SimulatedCellExecutor.cpp.o" \
 "CMakeFiles/agentinferkv_core.dir/src/SimulationLoop.cpp.o" \
 "CMakeFiles/agentinferkv_core.dir/src/PagedBlockManager.cpp.o" \
 "CMakeFiles/agentinferkv_core.dir/src/PrefixCache.cpp.o"
@@ -200,12 +215,13 @@ libagentinferkv_core.a: CMakeFiles/agentinferkv_core.dir/src/FCFSScheduler.cpp.o
 libagentinferkv_core.a: CMakeFiles/agentinferkv_core.dir/src/NaivePreallocator.cpp.o
 libagentinferkv_core.a: CMakeFiles/agentinferkv_core.dir/src/TraceReplayer.cpp.o
 libagentinferkv_core.a: CMakeFiles/agentinferkv_core.dir/src/SimulatedExecutor.cpp.o
+libagentinferkv_core.a: CMakeFiles/agentinferkv_core.dir/src/SimulatedCellExecutor.cpp.o
 libagentinferkv_core.a: CMakeFiles/agentinferkv_core.dir/src/SimulationLoop.cpp.o
 libagentinferkv_core.a: CMakeFiles/agentinferkv_core.dir/src/PagedBlockManager.cpp.o
 libagentinferkv_core.a: CMakeFiles/agentinferkv_core.dir/src/PrefixCache.cpp.o
 libagentinferkv_core.a: CMakeFiles/agentinferkv_core.dir/build.make
 libagentinferkv_core.a: CMakeFiles/agentinferkv_core.dir/link.txt
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --bold --progress-dir=/home/whn/AgentInferKV/build_real/CMakeFiles --progress-num=$(CMAKE_PROGRESS_9) "Linking CXX static library libagentinferkv_core.a"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --bold --progress-dir=/home/whn/AgentInferKV/build_real/CMakeFiles --progress-num=$(CMAKE_PROGRESS_10) "Linking CXX static library libagentinferkv_core.a"
 	$(CMAKE_COMMAND) -P CMakeFiles/agentinferkv_core.dir/cmake_clean_target.cmake
 	$(CMAKE_COMMAND) -E cmake_link_script CMakeFiles/agentinferkv_core.dir/link.txt --verbose=$(VERBOSE)
 

@@ -67,6 +67,7 @@ all: CMakeFiles/agentinferkv_core.dir/all
 all: CMakeFiles/agentinferkv_demo.dir/all
 all: CMakeFiles/agentinferkv_experiment1.dir/all
 all: CMakeFiles/agentinferkv_kvcell_demo.dir/all
+all: CMakeFiles/agentinferkv_cell_demo.dir/all
 all: CMakeFiles/agentinferkv_http.dir/all
 all: CMakeFiles/test_request.dir/all
 all: CMakeFiles/test_model_config.dir/all
@@ -79,6 +80,7 @@ all: CMakeFiles/test_prefix_cache.dir/all
 all: CMakeFiles/test_prefill_once.dir/all
 all: CMakeFiles/test_prefix_sharing.dir/all
 all: CMakeFiles/test_lru_eviction.dir/all
+all: CMakeFiles/test_running_reservation.dir/all
 all: CMakeFiles/agentinferkv_llama.dir/all
 all: CMakeFiles/agentinferkv_demo_real.dir/all
 all: CMakeFiles/agentinferkv_calibrate.dir/all
@@ -93,6 +95,7 @@ clean: CMakeFiles/agentinferkv_core.dir/clean
 clean: CMakeFiles/agentinferkv_demo.dir/clean
 clean: CMakeFiles/agentinferkv_experiment1.dir/clean
 clean: CMakeFiles/agentinferkv_kvcell_demo.dir/clean
+clean: CMakeFiles/agentinferkv_cell_demo.dir/clean
 clean: CMakeFiles/agentinferkv_http.dir/clean
 clean: CMakeFiles/test_request.dir/clean
 clean: CMakeFiles/test_model_config.dir/clean
@@ -105,6 +108,7 @@ clean: CMakeFiles/test_prefix_cache.dir/clean
 clean: CMakeFiles/test_prefill_once.dir/clean
 clean: CMakeFiles/test_prefix_sharing.dir/clean
 clean: CMakeFiles/test_lru_eviction.dir/clean
+clean: CMakeFiles/test_running_reservation.dir/clean
 clean: CMakeFiles/agentinferkv_llama.dir/clean
 clean: CMakeFiles/agentinferkv_demo_real.dir/clean
 clean: CMakeFiles/agentinferkv_calibrate.dir/clean
@@ -117,12 +121,12 @@ clean: CMakeFiles/agentinferkv_calibrate.dir/clean
 CMakeFiles/agentinferkv_core.dir/all:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/agentinferkv_core.dir/build.make CMakeFiles/agentinferkv_core.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/agentinferkv_core.dir/build.make CMakeFiles/agentinferkv_core.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/home/whn/AgentInferKV/build_real/CMakeFiles --progress-num=3,4,5,6,7,8,9,10,11 "Built target agentinferkv_core"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/home/whn/AgentInferKV/build_real/CMakeFiles --progress-num=5,6,7,8,9,10,11,12,13,14 "Built target agentinferkv_core"
 .PHONY : CMakeFiles/agentinferkv_core.dir/all
 
 # Build rule for subdir invocation for target.
 CMakeFiles/agentinferkv_core.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /home/whn/AgentInferKV/build_real/CMakeFiles 9
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/whn/AgentInferKV/build_real/CMakeFiles 10
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CMakeFiles/agentinferkv_core.dir/all
 	$(CMAKE_COMMAND) -E cmake_progress_start /home/whn/AgentInferKV/build_real/CMakeFiles 0
 .PHONY : CMakeFiles/agentinferkv_core.dir/rule
@@ -143,12 +147,12 @@ CMakeFiles/agentinferkv_core.dir/clean:
 CMakeFiles/agentinferkv_demo.dir/all: CMakeFiles/agentinferkv_core.dir/all
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/agentinferkv_demo.dir/build.make CMakeFiles/agentinferkv_demo.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/agentinferkv_demo.dir/build.make CMakeFiles/agentinferkv_demo.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/home/whn/AgentInferKV/build_real/CMakeFiles --progress-num=12,13 "Built target agentinferkv_demo"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/home/whn/AgentInferKV/build_real/CMakeFiles --progress-num=15,16 "Built target agentinferkv_demo"
 .PHONY : CMakeFiles/agentinferkv_demo.dir/all
 
 # Build rule for subdir invocation for target.
 CMakeFiles/agentinferkv_demo.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /home/whn/AgentInferKV/build_real/CMakeFiles 11
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/whn/AgentInferKV/build_real/CMakeFiles 12
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CMakeFiles/agentinferkv_demo.dir/all
 	$(CMAKE_COMMAND) -E cmake_progress_start /home/whn/AgentInferKV/build_real/CMakeFiles 0
 .PHONY : CMakeFiles/agentinferkv_demo.dir/rule
@@ -169,12 +173,12 @@ CMakeFiles/agentinferkv_demo.dir/clean:
 CMakeFiles/agentinferkv_experiment1.dir/all: CMakeFiles/agentinferkv_core.dir/all
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/agentinferkv_experiment1.dir/build.make CMakeFiles/agentinferkv_experiment1.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/agentinferkv_experiment1.dir/build.make CMakeFiles/agentinferkv_experiment1.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/home/whn/AgentInferKV/build_real/CMakeFiles --progress-num=16,17 "Built target agentinferkv_experiment1"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/home/whn/AgentInferKV/build_real/CMakeFiles --progress-num=19,20 "Built target agentinferkv_experiment1"
 .PHONY : CMakeFiles/agentinferkv_experiment1.dir/all
 
 # Build rule for subdir invocation for target.
 CMakeFiles/agentinferkv_experiment1.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /home/whn/AgentInferKV/build_real/CMakeFiles 11
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/whn/AgentInferKV/build_real/CMakeFiles 12
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CMakeFiles/agentinferkv_experiment1.dir/all
 	$(CMAKE_COMMAND) -E cmake_progress_start /home/whn/AgentInferKV/build_real/CMakeFiles 0
 .PHONY : CMakeFiles/agentinferkv_experiment1.dir/rule
@@ -195,12 +199,12 @@ CMakeFiles/agentinferkv_experiment1.dir/clean:
 CMakeFiles/agentinferkv_kvcell_demo.dir/all: CMakeFiles/agentinferkv_core.dir/all
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/agentinferkv_kvcell_demo.dir/build.make CMakeFiles/agentinferkv_kvcell_demo.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/agentinferkv_kvcell_demo.dir/build.make CMakeFiles/agentinferkv_kvcell_demo.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/home/whn/AgentInferKV/build_real/CMakeFiles --progress-num=20,21 "Built target agentinferkv_kvcell_demo"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/home/whn/AgentInferKV/build_real/CMakeFiles --progress-num=23,24 "Built target agentinferkv_kvcell_demo"
 .PHONY : CMakeFiles/agentinferkv_kvcell_demo.dir/all
 
 # Build rule for subdir invocation for target.
 CMakeFiles/agentinferkv_kvcell_demo.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /home/whn/AgentInferKV/build_real/CMakeFiles 11
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/whn/AgentInferKV/build_real/CMakeFiles 12
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CMakeFiles/agentinferkv_kvcell_demo.dir/all
 	$(CMAKE_COMMAND) -E cmake_progress_start /home/whn/AgentInferKV/build_real/CMakeFiles 0
 .PHONY : CMakeFiles/agentinferkv_kvcell_demo.dir/rule
@@ -215,18 +219,44 @@ CMakeFiles/agentinferkv_kvcell_demo.dir/clean:
 .PHONY : CMakeFiles/agentinferkv_kvcell_demo.dir/clean
 
 #=============================================================================
+# Target rules for target CMakeFiles/agentinferkv_cell_demo.dir
+
+# All Build rule for target.
+CMakeFiles/agentinferkv_cell_demo.dir/all: CMakeFiles/agentinferkv_core.dir/all
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/agentinferkv_cell_demo.dir/build.make CMakeFiles/agentinferkv_cell_demo.dir/depend
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/agentinferkv_cell_demo.dir/build.make CMakeFiles/agentinferkv_cell_demo.dir/build
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/home/whn/AgentInferKV/build_real/CMakeFiles --progress-num=3,4 "Built target agentinferkv_cell_demo"
+.PHONY : CMakeFiles/agentinferkv_cell_demo.dir/all
+
+# Build rule for subdir invocation for target.
+CMakeFiles/agentinferkv_cell_demo.dir/rule: cmake_check_build_system
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/whn/AgentInferKV/build_real/CMakeFiles 12
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CMakeFiles/agentinferkv_cell_demo.dir/all
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/whn/AgentInferKV/build_real/CMakeFiles 0
+.PHONY : CMakeFiles/agentinferkv_cell_demo.dir/rule
+
+# Convenience name for target.
+agentinferkv_cell_demo: CMakeFiles/agentinferkv_cell_demo.dir/rule
+.PHONY : agentinferkv_cell_demo
+
+# clean rule for target.
+CMakeFiles/agentinferkv_cell_demo.dir/clean:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/agentinferkv_cell_demo.dir/build.make CMakeFiles/agentinferkv_cell_demo.dir/clean
+.PHONY : CMakeFiles/agentinferkv_cell_demo.dir/clean
+
+#=============================================================================
 # Target rules for target CMakeFiles/agentinferkv_http.dir
 
 # All Build rule for target.
 CMakeFiles/agentinferkv_http.dir/all: CMakeFiles/agentinferkv_core.dir/all
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/agentinferkv_http.dir/build.make CMakeFiles/agentinferkv_http.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/agentinferkv_http.dir/build.make CMakeFiles/agentinferkv_http.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/home/whn/AgentInferKV/build_real/CMakeFiles --progress-num=18,19 "Built target agentinferkv_http"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/home/whn/AgentInferKV/build_real/CMakeFiles --progress-num=21,22 "Built target agentinferkv_http"
 .PHONY : CMakeFiles/agentinferkv_http.dir/all
 
 # Build rule for subdir invocation for target.
 CMakeFiles/agentinferkv_http.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /home/whn/AgentInferKV/build_real/CMakeFiles 11
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/whn/AgentInferKV/build_real/CMakeFiles 12
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CMakeFiles/agentinferkv_http.dir/all
 	$(CMAKE_COMMAND) -E cmake_progress_start /home/whn/AgentInferKV/build_real/CMakeFiles 0
 .PHONY : CMakeFiles/agentinferkv_http.dir/rule
@@ -247,12 +277,12 @@ CMakeFiles/agentinferkv_http.dir/clean:
 CMakeFiles/test_request.dir/all: CMakeFiles/agentinferkv_core.dir/all
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/test_request.dir/build.make CMakeFiles/test_request.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/test_request.dir/build.make CMakeFiles/test_request.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/home/whn/AgentInferKV/build_real/CMakeFiles --progress-num=40,41 "Built target test_request"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/home/whn/AgentInferKV/build_real/CMakeFiles --progress-num=43,44 "Built target test_request"
 .PHONY : CMakeFiles/test_request.dir/all
 
 # Build rule for subdir invocation for target.
 CMakeFiles/test_request.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /home/whn/AgentInferKV/build_real/CMakeFiles 11
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/whn/AgentInferKV/build_real/CMakeFiles 12
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CMakeFiles/test_request.dir/all
 	$(CMAKE_COMMAND) -E cmake_progress_start /home/whn/AgentInferKV/build_real/CMakeFiles 0
 .PHONY : CMakeFiles/test_request.dir/rule
@@ -273,12 +303,12 @@ CMakeFiles/test_request.dir/clean:
 CMakeFiles/test_model_config.dir/all: CMakeFiles/agentinferkv_core.dir/all
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/test_model_config.dir/build.make CMakeFiles/test_model_config.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/test_model_config.dir/build.make CMakeFiles/test_model_config.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/home/whn/AgentInferKV/build_real/CMakeFiles --progress-num=28,29 "Built target test_model_config"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/home/whn/AgentInferKV/build_real/CMakeFiles --progress-num=31,32 "Built target test_model_config"
 .PHONY : CMakeFiles/test_model_config.dir/all
 
 # Build rule for subdir invocation for target.
 CMakeFiles/test_model_config.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /home/whn/AgentInferKV/build_real/CMakeFiles 11
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/whn/AgentInferKV/build_real/CMakeFiles 12
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CMakeFiles/test_model_config.dir/all
 	$(CMAKE_COMMAND) -E cmake_progress_start /home/whn/AgentInferKV/build_real/CMakeFiles 0
 .PHONY : CMakeFiles/test_model_config.dir/rule
@@ -299,12 +329,12 @@ CMakeFiles/test_model_config.dir/clean:
 CMakeFiles/test_naive_preallocator.dir/all: CMakeFiles/agentinferkv_core.dir/all
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/test_naive_preallocator.dir/build.make CMakeFiles/test_naive_preallocator.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/test_naive_preallocator.dir/build.make CMakeFiles/test_naive_preallocator.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/home/whn/AgentInferKV/build_real/CMakeFiles --progress-num=30,31 "Built target test_naive_preallocator"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/home/whn/AgentInferKV/build_real/CMakeFiles --progress-num=33,34 "Built target test_naive_preallocator"
 .PHONY : CMakeFiles/test_naive_preallocator.dir/all
 
 # Build rule for subdir invocation for target.
 CMakeFiles/test_naive_preallocator.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /home/whn/AgentInferKV/build_real/CMakeFiles 11
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/whn/AgentInferKV/build_real/CMakeFiles 12
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CMakeFiles/test_naive_preallocator.dir/all
 	$(CMAKE_COMMAND) -E cmake_progress_start /home/whn/AgentInferKV/build_real/CMakeFiles 0
 .PHONY : CMakeFiles/test_naive_preallocator.dir/rule
@@ -325,12 +355,12 @@ CMakeFiles/test_naive_preallocator.dir/clean:
 CMakeFiles/test_fcfs_scheduler.dir/all: CMakeFiles/agentinferkv_core.dir/all
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/test_fcfs_scheduler.dir/build.make CMakeFiles/test_fcfs_scheduler.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/test_fcfs_scheduler.dir/build.make CMakeFiles/test_fcfs_scheduler.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/home/whn/AgentInferKV/build_real/CMakeFiles --progress-num=24,25 "Built target test_fcfs_scheduler"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/home/whn/AgentInferKV/build_real/CMakeFiles --progress-num=27,28 "Built target test_fcfs_scheduler"
 .PHONY : CMakeFiles/test_fcfs_scheduler.dir/all
 
 # Build rule for subdir invocation for target.
 CMakeFiles/test_fcfs_scheduler.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /home/whn/AgentInferKV/build_real/CMakeFiles 11
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/whn/AgentInferKV/build_real/CMakeFiles 12
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CMakeFiles/test_fcfs_scheduler.dir/all
 	$(CMAKE_COMMAND) -E cmake_progress_start /home/whn/AgentInferKV/build_real/CMakeFiles 0
 .PHONY : CMakeFiles/test_fcfs_scheduler.dir/rule
@@ -351,12 +381,12 @@ CMakeFiles/test_fcfs_scheduler.dir/clean:
 CMakeFiles/test_simulated_executor.dir/all: CMakeFiles/agentinferkv_core.dir/all
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/test_simulated_executor.dir/build.make CMakeFiles/test_simulated_executor.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/test_simulated_executor.dir/build.make CMakeFiles/test_simulated_executor.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/home/whn/AgentInferKV/build_real/CMakeFiles --progress-num=42,43 "Built target test_simulated_executor"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/home/whn/AgentInferKV/build_real/CMakeFiles --progress-num=47,48 "Built target test_simulated_executor"
 .PHONY : CMakeFiles/test_simulated_executor.dir/all
 
 # Build rule for subdir invocation for target.
 CMakeFiles/test_simulated_executor.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /home/whn/AgentInferKV/build_real/CMakeFiles 11
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/whn/AgentInferKV/build_real/CMakeFiles 12
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CMakeFiles/test_simulated_executor.dir/all
 	$(CMAKE_COMMAND) -E cmake_progress_start /home/whn/AgentInferKV/build_real/CMakeFiles 0
 .PHONY : CMakeFiles/test_simulated_executor.dir/rule
@@ -377,12 +407,12 @@ CMakeFiles/test_simulated_executor.dir/clean:
 CMakeFiles/test_simulation_loop.dir/all: CMakeFiles/agentinferkv_core.dir/all
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/test_simulation_loop.dir/build.make CMakeFiles/test_simulation_loop.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/test_simulation_loop.dir/build.make CMakeFiles/test_simulation_loop.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/home/whn/AgentInferKV/build_real/CMakeFiles --progress-num=44,45 "Built target test_simulation_loop"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/home/whn/AgentInferKV/build_real/CMakeFiles --progress-num=49,50 "Built target test_simulation_loop"
 .PHONY : CMakeFiles/test_simulation_loop.dir/all
 
 # Build rule for subdir invocation for target.
 CMakeFiles/test_simulation_loop.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /home/whn/AgentInferKV/build_real/CMakeFiles 11
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/whn/AgentInferKV/build_real/CMakeFiles 12
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CMakeFiles/test_simulation_loop.dir/all
 	$(CMAKE_COMMAND) -E cmake_progress_start /home/whn/AgentInferKV/build_real/CMakeFiles 0
 .PHONY : CMakeFiles/test_simulation_loop.dir/rule
@@ -403,12 +433,12 @@ CMakeFiles/test_simulation_loop.dir/clean:
 CMakeFiles/test_paged_block_manager.dir/all: CMakeFiles/agentinferkv_core.dir/all
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/test_paged_block_manager.dir/build.make CMakeFiles/test_paged_block_manager.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/test_paged_block_manager.dir/build.make CMakeFiles/test_paged_block_manager.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/home/whn/AgentInferKV/build_real/CMakeFiles --progress-num=32,33 "Built target test_paged_block_manager"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/home/whn/AgentInferKV/build_real/CMakeFiles --progress-num=35,36 "Built target test_paged_block_manager"
 .PHONY : CMakeFiles/test_paged_block_manager.dir/all
 
 # Build rule for subdir invocation for target.
 CMakeFiles/test_paged_block_manager.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /home/whn/AgentInferKV/build_real/CMakeFiles 11
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/whn/AgentInferKV/build_real/CMakeFiles 12
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CMakeFiles/test_paged_block_manager.dir/all
 	$(CMAKE_COMMAND) -E cmake_progress_start /home/whn/AgentInferKV/build_real/CMakeFiles 0
 .PHONY : CMakeFiles/test_paged_block_manager.dir/rule
@@ -429,12 +459,12 @@ CMakeFiles/test_paged_block_manager.dir/clean:
 CMakeFiles/test_prefix_cache.dir/all: CMakeFiles/agentinferkv_core.dir/all
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/test_prefix_cache.dir/build.make CMakeFiles/test_prefix_cache.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/test_prefix_cache.dir/build.make CMakeFiles/test_prefix_cache.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/home/whn/AgentInferKV/build_real/CMakeFiles --progress-num=36,37 "Built target test_prefix_cache"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/home/whn/AgentInferKV/build_real/CMakeFiles --progress-num=39,40 "Built target test_prefix_cache"
 .PHONY : CMakeFiles/test_prefix_cache.dir/all
 
 # Build rule for subdir invocation for target.
 CMakeFiles/test_prefix_cache.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /home/whn/AgentInferKV/build_real/CMakeFiles 11
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/whn/AgentInferKV/build_real/CMakeFiles 12
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CMakeFiles/test_prefix_cache.dir/all
 	$(CMAKE_COMMAND) -E cmake_progress_start /home/whn/AgentInferKV/build_real/CMakeFiles 0
 .PHONY : CMakeFiles/test_prefix_cache.dir/rule
@@ -455,12 +485,12 @@ CMakeFiles/test_prefix_cache.dir/clean:
 CMakeFiles/test_prefill_once.dir/all: CMakeFiles/agentinferkv_core.dir/all
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/test_prefill_once.dir/build.make CMakeFiles/test_prefill_once.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/test_prefill_once.dir/build.make CMakeFiles/test_prefill_once.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/home/whn/AgentInferKV/build_real/CMakeFiles --progress-num=34,35 "Built target test_prefill_once"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/home/whn/AgentInferKV/build_real/CMakeFiles --progress-num=37,38 "Built target test_prefill_once"
 .PHONY : CMakeFiles/test_prefill_once.dir/all
 
 # Build rule for subdir invocation for target.
 CMakeFiles/test_prefill_once.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /home/whn/AgentInferKV/build_real/CMakeFiles 11
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/whn/AgentInferKV/build_real/CMakeFiles 12
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CMakeFiles/test_prefill_once.dir/all
 	$(CMAKE_COMMAND) -E cmake_progress_start /home/whn/AgentInferKV/build_real/CMakeFiles 0
 .PHONY : CMakeFiles/test_prefill_once.dir/rule
@@ -481,12 +511,12 @@ CMakeFiles/test_prefill_once.dir/clean:
 CMakeFiles/test_prefix_sharing.dir/all: CMakeFiles/agentinferkv_core.dir/all
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/test_prefix_sharing.dir/build.make CMakeFiles/test_prefix_sharing.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/test_prefix_sharing.dir/build.make CMakeFiles/test_prefix_sharing.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/home/whn/AgentInferKV/build_real/CMakeFiles --progress-num=38,39 "Built target test_prefix_sharing"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/home/whn/AgentInferKV/build_real/CMakeFiles --progress-num=41,42 "Built target test_prefix_sharing"
 .PHONY : CMakeFiles/test_prefix_sharing.dir/all
 
 # Build rule for subdir invocation for target.
 CMakeFiles/test_prefix_sharing.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /home/whn/AgentInferKV/build_real/CMakeFiles 11
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/whn/AgentInferKV/build_real/CMakeFiles 12
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CMakeFiles/test_prefix_sharing.dir/all
 	$(CMAKE_COMMAND) -E cmake_progress_start /home/whn/AgentInferKV/build_real/CMakeFiles 0
 .PHONY : CMakeFiles/test_prefix_sharing.dir/rule
@@ -507,12 +537,12 @@ CMakeFiles/test_prefix_sharing.dir/clean:
 CMakeFiles/test_lru_eviction.dir/all: CMakeFiles/agentinferkv_core.dir/all
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/test_lru_eviction.dir/build.make CMakeFiles/test_lru_eviction.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/test_lru_eviction.dir/build.make CMakeFiles/test_lru_eviction.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/home/whn/AgentInferKV/build_real/CMakeFiles --progress-num=26,27 "Built target test_lru_eviction"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/home/whn/AgentInferKV/build_real/CMakeFiles --progress-num=29,30 "Built target test_lru_eviction"
 .PHONY : CMakeFiles/test_lru_eviction.dir/all
 
 # Build rule for subdir invocation for target.
 CMakeFiles/test_lru_eviction.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /home/whn/AgentInferKV/build_real/CMakeFiles 11
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/whn/AgentInferKV/build_real/CMakeFiles 12
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CMakeFiles/test_lru_eviction.dir/all
 	$(CMAKE_COMMAND) -E cmake_progress_start /home/whn/AgentInferKV/build_real/CMakeFiles 0
 .PHONY : CMakeFiles/test_lru_eviction.dir/rule
@@ -527,18 +557,44 @@ CMakeFiles/test_lru_eviction.dir/clean:
 .PHONY : CMakeFiles/test_lru_eviction.dir/clean
 
 #=============================================================================
+# Target rules for target CMakeFiles/test_running_reservation.dir
+
+# All Build rule for target.
+CMakeFiles/test_running_reservation.dir/all: CMakeFiles/agentinferkv_core.dir/all
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/test_running_reservation.dir/build.make CMakeFiles/test_running_reservation.dir/depend
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/test_running_reservation.dir/build.make CMakeFiles/test_running_reservation.dir/build
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/home/whn/AgentInferKV/build_real/CMakeFiles --progress-num=45,46 "Built target test_running_reservation"
+.PHONY : CMakeFiles/test_running_reservation.dir/all
+
+# Build rule for subdir invocation for target.
+CMakeFiles/test_running_reservation.dir/rule: cmake_check_build_system
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/whn/AgentInferKV/build_real/CMakeFiles 12
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CMakeFiles/test_running_reservation.dir/all
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/whn/AgentInferKV/build_real/CMakeFiles 0
+.PHONY : CMakeFiles/test_running_reservation.dir/rule
+
+# Convenience name for target.
+test_running_reservation: CMakeFiles/test_running_reservation.dir/rule
+.PHONY : test_running_reservation
+
+# clean rule for target.
+CMakeFiles/test_running_reservation.dir/clean:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/test_running_reservation.dir/build.make CMakeFiles/test_running_reservation.dir/clean
+.PHONY : CMakeFiles/test_running_reservation.dir/clean
+
+#=============================================================================
 # Target rules for target CMakeFiles/agentinferkv_llama.dir
 
 # All Build rule for target.
 CMakeFiles/agentinferkv_llama.dir/all: CMakeFiles/agentinferkv_core.dir/all
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/agentinferkv_llama.dir/build.make CMakeFiles/agentinferkv_llama.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/agentinferkv_llama.dir/build.make CMakeFiles/agentinferkv_llama.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/home/whn/AgentInferKV/build_real/CMakeFiles --progress-num=22,23 "Built target agentinferkv_llama"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/home/whn/AgentInferKV/build_real/CMakeFiles --progress-num=25,26 "Built target agentinferkv_llama"
 .PHONY : CMakeFiles/agentinferkv_llama.dir/all
 
 # Build rule for subdir invocation for target.
 CMakeFiles/agentinferkv_llama.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /home/whn/AgentInferKV/build_real/CMakeFiles 11
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/whn/AgentInferKV/build_real/CMakeFiles 12
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CMakeFiles/agentinferkv_llama.dir/all
 	$(CMAKE_COMMAND) -E cmake_progress_start /home/whn/AgentInferKV/build_real/CMakeFiles 0
 .PHONY : CMakeFiles/agentinferkv_llama.dir/rule
@@ -560,12 +616,12 @@ CMakeFiles/agentinferkv_demo_real.dir/all: CMakeFiles/agentinferkv_core.dir/all
 CMakeFiles/agentinferkv_demo_real.dir/all: CMakeFiles/agentinferkv_llama.dir/all
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/agentinferkv_demo_real.dir/build.make CMakeFiles/agentinferkv_demo_real.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/agentinferkv_demo_real.dir/build.make CMakeFiles/agentinferkv_demo_real.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/home/whn/AgentInferKV/build_real/CMakeFiles --progress-num=14,15 "Built target agentinferkv_demo_real"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/home/whn/AgentInferKV/build_real/CMakeFiles --progress-num=17,18 "Built target agentinferkv_demo_real"
 .PHONY : CMakeFiles/agentinferkv_demo_real.dir/all
 
 # Build rule for subdir invocation for target.
 CMakeFiles/agentinferkv_demo_real.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /home/whn/AgentInferKV/build_real/CMakeFiles 13
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/whn/AgentInferKV/build_real/CMakeFiles 14
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CMakeFiles/agentinferkv_demo_real.dir/all
 	$(CMAKE_COMMAND) -E cmake_progress_start /home/whn/AgentInferKV/build_real/CMakeFiles 0
 .PHONY : CMakeFiles/agentinferkv_demo_real.dir/rule
@@ -592,7 +648,7 @@ CMakeFiles/agentinferkv_calibrate.dir/all: CMakeFiles/agentinferkv_llama.dir/all
 
 # Build rule for subdir invocation for target.
 CMakeFiles/agentinferkv_calibrate.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /home/whn/AgentInferKV/build_real/CMakeFiles 13
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/whn/AgentInferKV/build_real/CMakeFiles 14
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CMakeFiles/agentinferkv_calibrate.dir/all
 	$(CMAKE_COMMAND) -E cmake_progress_start /home/whn/AgentInferKV/build_real/CMakeFiles 0
 .PHONY : CMakeFiles/agentinferkv_calibrate.dir/rule

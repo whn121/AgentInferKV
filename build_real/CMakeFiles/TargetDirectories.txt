@@ -2,6 +2,7 @@
 /home/whn/AgentInferKV/build_real/CMakeFiles/agentinferkv_demo.dir
 /home/whn/AgentInferKV/build_real/CMakeFiles/agentinferkv_experiment1.dir
 /home/whn/AgentInferKV/build_real/CMakeFiles/agentinferkv_kvcell_demo.dir
+/home/whn/AgentInferKV/build_real/CMakeFiles/agentinferkv_cell_demo.dir
 /home/whn/AgentInferKV/build_real/CMakeFiles/agentinferkv_http.dir
 /home/whn/AgentInferKV/build_real/CMakeFiles/test_request.dir
 /home/whn/AgentInferKV/build_real/CMakeFiles/test_model_config.dir
@@ -14,6 +15,7 @@
 /home/whn/AgentInferKV/build_real/CMakeFiles/test_prefill_once.dir
 /home/whn/AgentInferKV/build_real/CMakeFiles/test_prefix_sharing.dir
 /home/whn/AgentInferKV/build_real/CMakeFiles/test_lru_eviction.dir
+/home/whn/AgentInferKV/build_real/CMakeFiles/test_running_reservation.dir
 /home/whn/AgentInferKV/build_real/CMakeFiles/agentinferkv_llama.dir
 /home/whn/AgentInferKV/build_real/CMakeFiles/agentinferkv_demo_real.dir
 /home/whn/AgentInferKV/build_real/CMakeFiles/agentinferkv_calibrate.dir

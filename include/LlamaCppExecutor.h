@@ -24,7 +24,7 @@ namespace agentinferkv
     {
     public:
         explicit LlamaCppExecutor(const std::string& model_path, int n_gpu_layers = 99, int n_ctx = 2048
-                                    , int n_seq_max = 16);
+                                    , int n_seq_max = 16, const std::string& kv_type = "f16");
         ~LlamaCppExecutor() override;
         double Prefill(const Request& req, const BlockTableView& view) override;
         double PrefillTokens(const Request& req, const std::vector<int32_t>& tokens) override;
@@ -117,6 +117,7 @@ namespace agentinferkv
         int next_seq_id_ = 0;
         int n_seq_max_ = 0;  
         int n_ctx_ = 2048;
+        std::string kv_type_ = "f16";
         std::unordered_map<RequestId, int> seq_map_; // RequestId -> llama_seq_id
         std::unordered_map<RequestId, int> n_past_; // RequestId -> 已处理 token 数
         std::unordered_map<RequestId, int32_t> pending_tokens_;  // 待喂入下一次 decode 的 token
