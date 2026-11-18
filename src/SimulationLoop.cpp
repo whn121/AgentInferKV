@@ -366,7 +366,15 @@ namespace agentinferkv
             }
 
             BlockBudget budget;
-            budget.free_blocks = block_mgr_.NumFreeBlocks();
+            // running 预留：正在 decode 的请求下一步若跨块，先给它留 1 块，
+            // 避免新请求抢走最后几块导致 AppendToken 失败、触发抢占抖动。
+            int reserve_for_running = 0;
+            for (const auto& rr : running)
+            {
+                if (block_mgr_.NeedsBlockForNextToken(rr.req.id)) ++reserve_for_running;
+            }
+            budget.reserved_for_running = reserve_for_running;
+            budget.free_blocks = std::max(0, block_mgr_.NumFreeBlocks() - reserve_for_running);
             budget.blocks_needed = [this](const Request& r) 
             {
                 return block_mgr_.EstimateBlocks(r);

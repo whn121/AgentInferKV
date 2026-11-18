@@ -96,6 +96,7 @@ namespace agentinferkv
     struct BlockBudget 
     {
         int free_blocks = 0;
+        int reserved_for_running = 0;   // 为 running 下一步预留的块数（观测用）
         std::function<int(const Request&)> blocks_needed;
 
         // 扣减这个请求需要的块；不够返回 false，不扣。
@@ -156,6 +157,9 @@ namespace agentinferkv
         // Naive 用 prompt + max_new，Paged 用 prompt
         // Scheduler 的预算扣减依赖它，保证“估算”和“实际分配”口径一致
         virtual int EstimateBlocks(const Request& req) const = 0;
+
+        // running 预留：下一步 decode 是否会跨块（默认实现不需要）
+        virtual bool NeedsBlockForNextToken(RequestId /*id*/) const { return false; }
 
         // 当前空闲物理块数，用于观测和背压判断
         virtual int NumFreeBlocks() const = 0;

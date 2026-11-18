@@ -16,7 +16,7 @@ namespace agentinferkv
         int head_dim = 128;    // 每个head的维度
         int dtype_bytes = 2;   // fp16 = 2, fp32 = 4, int8 = 1;
 
-        int block_size = 16;   // 每个物理block容纳的token数
+        int block_size = 16;   // 每个物理block容纳的token数 
         int num_blocks = 1024; // 显存中物理block总数
 
         // 单个token的k+v字节数

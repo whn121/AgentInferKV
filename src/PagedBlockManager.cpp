@@ -134,6 +134,15 @@ namespace agentinferkv
         return config_.BlocksForTokens(net);
     }
 
+    bool PagedBlockManager::NeedsBlockForNextToken(RequestId id) const
+    {
+        auto tit = tables_.find(id);
+        auto cit = current_tokens_.find(id);
+        if (tit == tables_.end() || cit == current_tokens_.end()) return false;
+        const int next = cit->second + 1;
+        return config_.BlocksForTokens(next) > tit->second.NumBlocks();
+    }
+
     int PagedBlockManager::TailUnusedCapacity() const 
     {
         int tail = 0;

@@ -22,6 +22,7 @@ namespace agentinferkv
         void RetainSharedBlock(BlockId id) override;
         void ReleaseSharedBlock(BlockId id) override;
         int EstimateBlocks(const Request& req) const override;
+        bool NeedsBlockForNextToken(RequestId id) const override;
 
         // 所有已分配请求最后一块中未使用的token容量和
         // 用于对比“碎片”：Paged 只浪费最后一块的尾部，Naive 浪费整个预留区间

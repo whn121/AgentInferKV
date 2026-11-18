@@ -1,3 +1,13 @@
+## running 预留（避免 decode 扩块被新请求抢走）
+
+`SimulationLoop` 在调度前先看每个 running 请求"下一步 decode 是否跨块"
+（`IBlockSpaceManager::NeedsBlockForNextToken`）；需要则从预算里预留 1 块，
+再拿剩余预算接纳 waiting。`BlockBudget::reserved_for_running` 记录预留数。
+
+- 收益：decode 不会因为新请求占满池子而 `AppendToken` 失败、触发抢占抖动。
+- 边界：只预留"跨块的那一步"；若空闲块少于预留数，仍走抢占兜底。
+- 测试：`tests/test_running_reservation.cpp`（预留时拒绝大请求、不预留时准入）。
+
 # AgentInferKV
 
 C++17 实现的 LLM 推理调度与 KV Cache 管理控制平面原型。参照 vLLM V1 的 Scheduler /
