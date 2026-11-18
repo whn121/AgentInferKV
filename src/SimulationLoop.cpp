@@ -42,6 +42,14 @@ namespace agentinferkv
          : config_ (config), scheduler_ (scheduler), block_mgr_ (block_mgr), executor_ (executor)
             ,  prefix_cache_(prefix_cache) {}
 
+    static double PercentileOf(std::vector<double> v, double q)
+    {
+        if (v.empty()) return 0.0;
+        std::sort(v.begin(), v.end());
+        std::size_t idx = static_cast<std::size_t>(q * (v.size() - 1));
+        return v[idx];
+    }
+
     SimulationResult SimulationLoop::Run (std::vector<Request> requests)
     {
         // 按照到达时间排序, 同一时刻按id
@@ -500,6 +508,26 @@ namespace agentinferkv
         result.preempted = preempted_total;
         result.max_concurrent = max_concurrent;
         result.peak_blocks_in_use = peak_blocks;
+
+        std::vector<double> ttfts, tpots;
+        for (const auto& r : result.completed)
+        {
+            if (r.state != RequestState::kDone) continue;
+            const double ttft = r.Ttft();
+            if (ttft > 0) ttfts.push_back(ttft);
+            if (r.generated_tokens > 1 && r.finish_time > r.first_token_time)
+            {
+                tpots.push_back((r.finish_time - r.first_token_time) / (r.generated_tokens - 1));
+            }
+        }
+        result.ttft_p50 = PercentileOf(ttfts, 0.50);
+        result.ttft_p95 = PercentileOf(ttfts, 0.95);
+        result.ttft_p99 = PercentileOf(ttfts, 0.99);
+        result.tpot_p50 = PercentileOf(tpots, 0.50);
+        result.tpot_p95 = PercentileOf(tpots, 0.95);
+        result.tpot_p99 = PercentileOf(tpots, 0.99);
+        result.throughput = result.total_sim_time > 0
+            ? static_cast<double>(result.completed.size()) / result.total_sim_time : 0.0;
         return result;
     }
 }

@@ -71,6 +71,9 @@ static void RunOnce(const char* label, const ModelConfig& config, const Executor
     // 账目自检：所有请求都结束后，每个物理块要么在池子里，要么被缓存持有。
     // 少了就说明引用计数只加不减（历史 bug：前缀块没进请求块表）。
     const int accounted = mgr.NumFreeBlocks() + static_cast<int>(cache.CachedBlocks());
+    std::printf("  metrics: ttft p50/p95/p99=%.4f/%.4f/%.4f  tpot p50/p95/p99=%.4f/%.4f/%.4f  throughput=%.1f req/s\n",
+                result.ttft_p50, result.ttft_p95, result.ttft_p99,
+                result.tpot_p50, result.tpot_p95, result.tpot_p99, result.throughput);
     std::printf("  blocks: free+cached=%d/%d %s\n\n", accounted, config.num_blocks,
                 accounted == config.num_blocks ? "OK" : "MISMATCH");
 }

@@ -16,6 +16,10 @@ namespace agentinferkv
         int max_concurrent = 0;           // 峰值并发运行请求数
         int peak_blocks_in_use = 0;       // 峰值占用物理块数（碎片对比用）
         int preempted = 0;                // recompute 抢占次数（块不足时重排队的次数）
+        // 指标：TTFT/TPOT 分位数与吞吐（completed / sim_time）
+        double ttft_p50 = 0.0, ttft_p95 = 0.0, ttft_p99 = 0.0;
+        double tpot_p50 = 0.0, tpot_p95 = 0.0, tpot_p99 = 0.0;
+        double throughput = 0.0;          // 完成的请求数 / 模拟总时间
     };
 
     // 事件驱动的主循环

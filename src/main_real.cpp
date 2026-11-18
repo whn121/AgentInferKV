@@ -229,6 +229,9 @@ int main(int argc, char** argv) {
                 sequential ? "ON" : "OFF", exec.KvReuseSupported() ? "yes" : "no");
     std::printf("  completed=%zu avg_ttft=%.4f s p50=%.4f p95=%.4f max=%.4f (n=%zu)\n",
                 result.completed.size(), avg_ttft, pct(0.50), pct(0.95), pct(1.0), ttfts.size());
+    std::printf("  metrics: ttft p50/p95/p99=%.4f/%.4f/%.4f  tpot p50/p95/p99=%.4f/%.4f/%.4f  throughput=%.1f req/s\n",
+                result.ttft_p50, result.ttft_p95, result.ttft_p99,
+                result.tpot_p50, result.tpot_p95, result.tpot_p99, result.throughput);
     std::printf("  max_concurrent=%d total_sim_time=%.4f s\n",
                 result.max_concurrent, result.total_sim_time);
     std::printf("  total_generated=%d max_generated=%d eos_early=%d/%zu\n",
