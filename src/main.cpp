@@ -60,22 +60,14 @@ static void RunOnce(const char* label, const ModelConfig& config, const Executor
     }
     double avg_ttft = (n > 0) ? sum_ttft / n : 0.0;
 
-    std::printf("=== %s ===\n", label);
-    std::printf("  completed=%zu avg_ttft=%.4f total_cached_tokens=%d total_prefill_tokens=%d hits=%d/%d\n"
-                , result.completed.size(), avg_ttft, total_cached, total_prefill_tokens
-                , cache.TotalHits(), cache.TotalQueries());
-    std::printf("  max_concurrent=%d peak_blocks=%d free_blocks=%d cached_blocks=%zu evicted=%zu\n"
-                , result.max_concurrent, result.peak_blocks_in_use
-                , mgr.NumFreeBlocks(), cache.CachedBlocks(), cache.EvictedBlocks());
-
-    // 账目自检：所有请求都结束后，每个物理块要么在池子里，要么被缓存持有。
-    // 少了就说明引用计数只加不减（历史 bug：前缀块没进请求块表）。
     const int accounted = mgr.NumFreeBlocks() + static_cast<int>(cache.CachedBlocks());
-    std::printf("  metrics: ttft p50/p95/p99=%.4f/%.4f/%.4f  tpot p50/p95/p99=%.4f/%.4f/%.4f  throughput=%.1f req/s\n",
-                result.ttft_p50, result.ttft_p95, result.ttft_p99,
-                result.tpot_p50, result.tpot_p95, result.tpot_p99, result.throughput);
-    std::printf("  blocks: free+cached=%d/%d %s\n\n", accounted, config.num_blocks,
-                accounted == config.num_blocks ? "OK" : "MISMATCH");
+    const bool ok = (accounted == config.num_blocks);
+    const double hit_pct = cache.TotalQueries() > 0
+        ? 100.0 * static_cast<double>(cache.TotalHits()) / cache.TotalQueries() : 0.0;
+    std::printf("%-28s prefill=%d cached=%d hit=%.0f%% p50=%.1fms peak=%d evict=%zu ok=%d\n",
+                label, total_prefill_tokens, total_cached,
+                hit_pct, result.ttft_p50 * 1000.0, result.peak_blocks_in_use,
+                cache.EvictedBlocks(), ok ? 1 : 0);
 }
 
 int main() 

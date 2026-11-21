@@ -96,22 +96,14 @@ namespace
 
     void PrintRow(const Row& row)
     {
-        std::printf("| %-7s | %14d | %12d | %4d/%-2d | %9d | %9.2f | %10.4f |\n",
-                    row.strategy,
-                    row.max_concurrent,
-                    row.peak_blocks,
-                    row.done, row.done + row.cancelled,
-                    row.preempted,
-                    row.avg_ttft * 1000.0,
-                    row.makespan);
+        std::printf("%-6s concurrent=%d done=%d/%d preempt=%d\n",
+                    row.strategy, row.max_concurrent,
+                    row.done, row.done + row.cancelled, row.preempted);
     }
 
     void RunSuite(int num_blocks, const ExecutorConfig& exec_cfg, const std::vector<TraceSpec>& trace)
     {
-        std::printf("\n-- blocks=%d (容量 %d token) --\n", num_blocks, num_blocks * 16);
-        std::printf("| strategy | max_concurrent | peak_blocks | done | preempted | avg_ttft(ms) | makespan(s) |\n");
-        std::printf("|----------|----------------|-------------|------|-----------|--------------|-------------|\n");
-
+        std::printf("blocks=%d (tokens=%d)\n", num_blocks, num_blocks * 16);
         PrintRow(RunStrategy<NaivePreallocator>("Naive", num_blocks, exec_cfg, trace));
         PrintRow(RunStrategy<PagedBlockManager>("Paged", num_blocks, exec_cfg, trace));
     }
@@ -153,17 +145,8 @@ int main(int argc, char** argv)
         trace.push_back(spec);
     }
 
-    std::printf("== 实验1: 同 trace 下 Naive vs Paged ==\n");
-    std::printf("trace: 6 requests 同时到达, prompt=20, max_new=30, block_size=16\n");
-
+    std::printf("trace: 6 requests prompt=20 max_new=30 block=16\n");
     RunSuite(8, exec_cfg, trace);
     RunSuite(16, exec_cfg, trace);
-
-    std::printf("\n读法: \n");
-    std::printf("  - max_concurrent 是峰值并发请求数, peak_blocks 是峰值物理块占用；\n");
-    std::printf("  - Paged 用更少的块换到更高的准入并发，这是 PagedAttention 的收益；\n");
-    std::printf("  - 但块池被占满后 Decode 扩块会失败，本版本用“取消”代替抢占，\n");
-    std::printf("    所以 done 会下降。要把 done 拉回 100%%，需要 preemption / swap, \n");
-    std::printf("    这是本项目明确没做的部分。\n");
     return 0;
 }

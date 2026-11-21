@@ -59,22 +59,17 @@ namespace
         auto result = loop.Run(std::move(reqs));
 
         const auto pool = exec.Pool();
-        std::printf("=== %s ===\n", label);
-        std::printf("  kv_bytes_per_token=%zu pool_capacity=%.2f MB\n",
+        std::printf("%-10s kv=%zu written=%.2fMB hit=%d/%d\n",
+                    label,
                     config.KvBytesPerToken(),
-                    static_cast<double>(pool->CapacityBytes()) / (1024.0 * 1024.0));
-        std::printf("  completed=%zu written=%.2f MB peak=%.2f MB\n",
-                    result.completed.size(),
                     static_cast<double>(pool->WrittenBytes()) / (1024.0 * 1024.0),
-                    static_cast<double>(pool->PeakBytes()) / (1024.0 * 1024.0));
-        std::printf("  internal_fragmentation_tokens=%d hits=%d/%d\n",
-                    mgr.TailUnusedCapacity(), cache.TotalHits(), cache.TotalQueries());
+                    cache.TotalHits(), cache.TotalQueries());
     }
 }
 
 int main()
 {
-    RunOnce("A. 不开前缀缓存", false);
-    RunOnce("B. 开前缀缓存（前 32 token 命中）", true);
+    RunOnce("A", false);
+    RunOnce("B", true);
     return 0;
 }
