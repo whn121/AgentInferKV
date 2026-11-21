@@ -24,14 +24,14 @@ int main(int argc, char** argv) {
         std::fprintf(stderr, "  --no-prefix    关闭 PrefixCache（控制层不做前缀匹配）\n");
         std::fprintf(stderr, "  --kv-reuse     开启跨请求 KV 复用（实验性：长前缀下输出可能不一致）\n");
         std::fprintf(stderr, "  --sequential   请求串行到达，batch 组成固定，用于校验采样一致性\n");
-        std::fprintf(stderr, "  --system-repeat=N  共享 system prompt 重复段数（默认 6），用来放大前缀长度\n");
-        std::fprintf(stderr, "  --ctx=N        上下文长度（默认 2048）\n");
-        std::fprintf(stderr, "  --num-requests=N  请求数（默认 5；trace 实验用 100）\n");
+        std::fprintf(stderr, "  --system-repeat=N  共享 system prompt 重复段数（默认 40），用来放大前缀长度\n");
+        std::fprintf(stderr, "  --ctx=N        上下文长度（默认 8192）\n");
+        std::fprintf(stderr, "  --num-requests=N  请求数（默认 100）\n");
         std::fprintf(stderr, "  --prompt-mix=A/B/C  短/中/长 system prompt 百分比（默认 50/30/20）\n");
         std::fprintf(stderr, "  --seed=S       随机种子（默认 42，保证 trace 可复现）\n");
-        std::fprintf(stderr, "  --max-new=N    每个请求最多生成 token（默认 5）\n");
+        std::fprintf(stderr, "  --max-new=N    每个请求最多生成 token（默认 16）\n");
         std::fprintf(stderr, "  --no-reuse     关闭执行面 seq_cp 复用（基线对照用）\n");
-        std::fprintf(stderr, "  --n-seq=N      并发 seq 上限（默认 16；统一 KV 下每 seq 可用 ctx/N）\n");
+        std::fprintf(stderr, "  --n-seq=N      并发 seq 上限（默认 4；统一 KV 下每 seq 可用 ctx/N）\n");
         std::fprintf(stderr, "  --blocks=N     KV 块池大小（默认 64，每块 16 token）\n");
         std::fprintf(stderr, "  --kv-type=T    KV 精度：f16/q8_0/q4_0（默认 f16）\n");
         return 1;
@@ -43,19 +43,19 @@ int main(int argc, char** argv) {
     // 输出不一致（README 实验四）。正确性优先，需要时显式 --kv-reuse 打开。
     bool enable_kv_reuse = false;
     bool sequential = false;
-    int system_repeat = 6;
-    int n_ctx = 2048;
+    int system_repeat = 40;
+    int n_ctx = 8192;
     int max_pinned = 3;
     double arrival_gap = -1.0;   // <0 表示用默认值（sequential 0.6s / 否则 0.05s）
     bool verify_reuse = false;
     bool reuse_disabled = false;
     bool sync_batch = false;
     int reuse_margin = 0;
-    int num_requests = 5;
+    int num_requests = 100;
     int mix_short = 50, mix_mid = 30, mix_long = 20;
     long seed = 42;
-    int max_new = 5;
-    int n_seq = 16;
+    int max_new = 16;
+    int n_seq = 4;
     int num_blocks = 64;
     std::string kv_type = "f16";   // f16 / q8_0 / q4_0
     std::string corpus_path;   // 非空则从真实文本文件取 prompt
