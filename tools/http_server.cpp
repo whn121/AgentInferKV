@@ -109,6 +109,11 @@ namespace
 
 int main(int argc, char** argv)
 {
+    if (argc > 1 && (std::strcmp(argv[1], "-h") == 0 || std::strcmp(argv[1], "--help") == 0))
+    {
+        std::printf("usage: %s [port]   (default 18080)\n", argv[0]);
+        return 0;
+    }
     const int port = (argc > 1) ? std::atoi(argv[1]) : 18080;
     const int n_ctx = 2048;
 

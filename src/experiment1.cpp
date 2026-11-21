@@ -117,6 +117,13 @@ int main(int argc, char** argv)
     // 结果和真实测量对不上，等于两套数字打架——已删除。
     for (int i = 1; i < argc; ++i)
     {
+        if (std::strcmp(argv[i], "-h") == 0 || std::strcmp(argv[i], "--help") == 0)
+        {
+            std::printf("usage: %s [--preempt=self|victim] [--sync-batch]\n"
+                        "  --preempt=self|victim  preemption policy (default self)\n"
+                        "  --sync-batch           static batch decode (default continuous)\n", argv[0]);
+            return 0;
+        }
         if (std::strcmp(argv[i], "--sync-batch") == 0) g_sync_batch = true;
         if (std::strncmp(argv[i], "--preempt=", 10) == 0)
         {

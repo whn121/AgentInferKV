@@ -6,6 +6,7 @@
 #include "SimulationLoop.h"
 
 #include <cstdio>
+#include <cstring>
 #include <vector>
 
 using namespace agentinferkv;
@@ -70,8 +71,13 @@ static void RunOnce(const char* label, const ModelConfig& config, const Executor
                 cache.EvictedBlocks(), ok ? 1 : 0);
 }
 
-int main() 
+int main(int argc, char** argv)
 {
+    if (argc > 1 && (std::strcmp(argv[1], "-h") == 0 || std::strcmp(argv[1], "--help") == 0))
+    {
+        std::printf("usage: %s\n  no args: run prefix OFF / ON / LRU(3) simulation\n", argv[0]);
+        return 0;
+    }
     ModelConfig config;
     config.num_layers = 32;
     config.num_kv_heads = 32;

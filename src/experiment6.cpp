@@ -19,6 +19,7 @@
 #include "SimulationLoop.h"
 
 #include <cstdio>
+#include <cstring>
 #include <vector>
 
 using namespace agentinferkv;
@@ -67,8 +68,13 @@ namespace
     }
 }
 
-int main()
+int main(int argc, char** argv)
 {
+    if (argc > 1 && (std::strcmp(argv[1], "-h") == 0 || std::strcmp(argv[1], "--help") == 0))
+    {
+        std::printf("usage: %s\n  no args: run KV write-volume A/B (20 reqs, 32 shared)\n", argv[0]);
+        return 0;
+    }
     RunOnce("A", false);
     RunOnce("B", true);
     return 0;

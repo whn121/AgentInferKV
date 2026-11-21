@@ -14,6 +14,7 @@
 #include "PagedBlockManager.h"
 
 #include <cstdio>
+#include <cstring>
 #include <string>
 #include <vector>
 
@@ -63,8 +64,13 @@ namespace
     }
 }
 
-int main()
+int main(int argc, char** argv)
 {
+    if (argc > 1 && (std::strcmp(argv[1], "-h") == 0 || std::strcmp(argv[1], "--help") == 0))
+    {
+        std::printf("usage: %s\n  no args: cell mapping / reuse demo\n", argv[0]);
+        return 0;
+    }
     ModelConfig config;
     config.block_size = 16;
     config.num_blocks = 8;      // 小池子，方便观察复用
