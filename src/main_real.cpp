@@ -17,10 +17,11 @@
 
 using namespace agentinferkv;
 
-int main(int argc, char** argv) {
-    if (argc < 2) {
+static void PrintUsage(const char* prog)
+{
+
         std::fprintf(stderr, "Usage: %s <model.gguf> [--no-prefix] [--no-kv-reuse] [--sequential]\n"
-                             "       [--system-repeat=N] [--ctx=N]\n", argv[0]);
+                             "       [--system-repeat=N] [--ctx=N]\n", prog);
         std::fprintf(stderr, "  --no-prefix    关闭 PrefixCache（控制层不做前缀匹配）\n");
         std::fprintf(stderr, "  --kv-reuse     开启跨请求 KV 复用（实验性：长前缀下输出可能不一致）\n");
         std::fprintf(stderr, "  --sequential   请求串行到达，batch 组成固定，用于校验采样一致性\n");
@@ -34,7 +35,16 @@ int main(int argc, char** argv) {
         std::fprintf(stderr, "  --n-seq=N      并发 seq 上限（默认 4；统一 KV 下每 seq 可用 ctx/N）\n");
         std::fprintf(stderr, "  --blocks=N     KV 块池大小（默认 64，每块 16 token）\n");
         std::fprintf(stderr, "  --kv-type=T    KV 精度：f16/q8_0/q4_0（默认 f16）\n");
+}
+
+int main(int argc, char** argv) {
+    if (argc < 2) {
+        PrintUsage(argv[0]);
         return 1;
+    }
+    if (std::strcmp(argv[1], "-h") == 0 || std::strcmp(argv[1], "--help") == 0) {
+        PrintUsage(argv[0]);
+        return 0;
     }
     std::string model_path = argv[1];
 
