@@ -35,7 +35,7 @@ static void PrintUsage(const char* prog)
         std::fprintf(stderr, "  --n-seq=N      并发 seq 上限（默认 4；统一 KV 下每 seq 可用 ctx/N）\n");
         std::fprintf(stderr, "  --blocks=N     KV 块池大小（默认 64，每块 16 token）\n");
         std::fprintf(stderr, "  --kv-type=T    KV 精度：f16/q8_0/q4_0（默认 f16）\n");
-        std::fprintf(stderr, "  --brief        只输出关键指标（completed/hit/p50/reused/eos）\n");
+        std::fprintf(stderr, "  --verbose      输出详细指标（默认只输出关键指标）\n");
 }
 
 int main(int argc, char** argv) {
@@ -61,7 +61,7 @@ int main(int argc, char** argv) {
     bool verify_reuse = false;
     bool reuse_disabled = false;
     bool sync_batch = false;
-    bool brief = false;   // 只输出关键指标
+    bool brief = true;    // 默认只输出关键指标
     int reuse_margin = 0;
     int num_requests = 100;
     int mix_short = 50, mix_mid = 30, mix_long = 20;
@@ -76,6 +76,7 @@ int main(int argc, char** argv) {
         if (std::strcmp(argv[i], "--no-kv-reuse") == 0) enable_kv_reuse = false;
         if (std::strcmp(argv[i], "--kv-reuse") == 0) enable_kv_reuse = true;
         if (std::strcmp(argv[i], "--brief") == 0) brief = true;
+        if (std::strcmp(argv[i], "--verbose") == 0 || std::strcmp(argv[i], "--full") == 0) brief = false;
         if (std::strcmp(argv[i], "--sequential") == 0) sequential = true;
         if (std::strncmp(argv[i], "--system-repeat=", 16) == 0) system_repeat = std::atoi(argv[i] + 16);
         if (std::strncmp(argv[i], "--ctx=", 6) == 0) n_ctx = std::atoi(argv[i] + 6);
@@ -210,7 +211,10 @@ int main(int argc, char** argv) {
                 num_requests, mix_short, mix_mid, mix_long, seed, max_new,
                 arrival_gap >= 0.0 ? arrival_gap : (sequential ? 0.6 : 0.05));
 
-    std::printf("prompt_tokens(first request)=%zu\n", reqs.empty() ? 0u : reqs[0].prompt_tokens.size());
+    if (!brief)
+    {
+        std::printf("prompt_tokens(first request)=%zu\n", reqs.empty() ? 0u : reqs[0].prompt_tokens.size());
+    }
 
     auto result = loop.Run(std::move(reqs));
 
@@ -244,10 +248,17 @@ int main(int argc, char** argv) {
     {
         const double hit_pct = cache.TotalQueries() > 0
             ? 100.0 * static_cast<double>(cache.TotalHits()) / cache.TotalQueries() : 0.0;
-        std::printf("[brief] prefix=%s reuse=%s completed=%zu hit=%.1f%% reused_tokens=%d p50=%.1fms eos_early=%d/%zu\n",
+        std::uint64_t h = 1469598103934665603ull;
+        if (const auto* ids = exec.GeneratedIds(1))
+        {
+            for (int32_t t : *ids) { h ^= static_cast<std::uint64_t>(t); h *= 1099511628211ull; }
+        }
+        std::printf("[brief] prefix=%s reuse=%s completed=%zu hit=%.1f%% reused_tokens=%d kv_bytes=%zu p50=%.1fms eos_early=%d/%zu digest=%016llx\n",
                     enable_prefix ? "ON" : "OFF", enable_kv_reuse ? "ON" : "OFF",
                     result.completed.size(), hit_pct, exec.ReusedPrefixTokens(),
-                    result.ttft_p50 * 1000.0, eos_early, result.completed.size());
+                    config.KvBytesPerToken(), result.ttft_p50 * 1000.0,
+                    eos_early, result.completed.size(),
+                    static_cast<unsigned long long>(h));
         return 0;
     }
 
