@@ -35,6 +35,7 @@ static void PrintUsage(const char* prog)
         std::fprintf(stderr, "  --n-seq=N      并发 seq 上限（默认 4；统一 KV 下每 seq 可用 ctx/N）\n");
         std::fprintf(stderr, "  --blocks=N     KV 块池大小（默认 64，每块 16 token）\n");
         std::fprintf(stderr, "  --kv-type=T    KV 精度：f16/q8_0/q4_0（默认 f16）\n");
+        std::fprintf(stderr, "  --brief        只输出关键指标（completed/hit/p50/reused/eos）\n");
 }
 
 int main(int argc, char** argv) {
@@ -60,6 +61,7 @@ int main(int argc, char** argv) {
     bool verify_reuse = false;
     bool reuse_disabled = false;
     bool sync_batch = false;
+    bool brief = false;   // 只输出关键指标
     int reuse_margin = 0;
     int num_requests = 100;
     int mix_short = 50, mix_mid = 30, mix_long = 20;
@@ -73,6 +75,7 @@ int main(int argc, char** argv) {
         if (std::strcmp(argv[i], "--no-prefix") == 0) enable_prefix = false;
         if (std::strcmp(argv[i], "--no-kv-reuse") == 0) enable_kv_reuse = false;
         if (std::strcmp(argv[i], "--kv-reuse") == 0) enable_kv_reuse = true;
+        if (std::strcmp(argv[i], "--brief") == 0) brief = true;
         if (std::strcmp(argv[i], "--sequential") == 0) sequential = true;
         if (std::strncmp(argv[i], "--system-repeat=", 16) == 0) system_repeat = std::atoi(argv[i] + 16);
         if (std::strncmp(argv[i], "--ctx=", 6) == 0) n_ctx = std::atoi(argv[i] + 6);
@@ -235,6 +238,17 @@ int main(int argc, char** argv) {
         if (r.generated_tokens > max_gen) max_gen = r.generated_tokens;
         if (r.generated_tokens < max_new) eos_early++;
         total_cached += r.cached_prefix_len;
+    }
+
+    if (brief)
+    {
+        const double hit_pct = cache.TotalQueries() > 0
+            ? 100.0 * static_cast<double>(cache.TotalHits()) / cache.TotalQueries() : 0.0;
+        std::printf("[brief] prefix=%s reuse=%s completed=%zu hit=%.1f%% reused_tokens=%d p50=%.1fms eos_early=%d/%zu\n",
+                    enable_prefix ? "ON" : "OFF", enable_kv_reuse ? "ON" : "OFF",
+                    result.completed.size(), hit_pct, exec.ReusedPrefixTokens(),
+                    result.ttft_p50 * 1000.0, eos_early, result.completed.size());
+        return 0;
     }
 
     std::printf("=== Real GPU execution ===\n");
