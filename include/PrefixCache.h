@@ -6,6 +6,7 @@
 #include <cstdint>
 #include <list>
 #include <memory>
+#include <mutex>
 #include <unordered_map>
 #include <vector>
 
@@ -21,6 +22,11 @@ namespace agentinferkv
     //     并通过 IBlockSpaceManager::ReleaseSharedBlock 把物理块还给池子。
     //   - 只有“叶子 + ref_count == 0”的节点可被淘汰：非叶子节点下面还挂着别的前缀，
     //     有活跃引用的节点可能正被某个请求的块表使用。
+    //
+    // 线程模型：整棵 Trie 由 mu_ 保护。淘汰路径和匹配路径持有同一把锁，
+    // 所以“匹配到某个块”和“该块被淘汰回收”不会交错；
+    // MatchAndRetain 在持锁状态下调用 IBlockSpaceManager::RetainIfAlive，
+    // 把“查到了”和“引用加一”变成一步，避免拿到已被回收的块。
     class PrefixCache
     {
     public:
@@ -36,7 +42,13 @@ namespace agentinferkv
 
         // 查找最长前缀(按 block_size 对齐)，同时把命中路径标记为最近使用
         // 返回命中的 BlockId 列表和命中 token 数
+        // 纯查询，不加引用；预算估算用这个
         MatchResult Match(const std::vector<TokenId>& prompt, int block_size) const;
+
+        // 查找前缀 + 给命中的块加引用，两步在同一把锁内完成。
+        // 路径上某个块已经不在分配中时，只返回它之前成功拿到引用的块。
+        // 真正要复用这些块时用这个，调用方随后 Free 时会统一 Release。
+        MatchResult MatchAndRetain(const std::vector<TokenId>& prompt, int block_size);
 
         // 插入新计算的前缀。返回本次新建的块 ID 列表。
         // 调用方应对返回的每个块 RetainSharedBlock，让缓存持有引用。
@@ -72,9 +84,11 @@ namespace agentinferkv
         static Node* FindChild(Node* cur, const std::vector<TokenId>& tokens);
 
         void Touch(Node* node) const;
+        // 下面两个要求持有 mu_
         void EvictIfNeeded();
         bool EvictOne();
 
+        mutable std::mutex mu_;
         Node root_;
         IBlockSpaceManager* block_mgr_ = nullptr;
         std::size_t max_cached_blocks_ = 0;

@@ -153,6 +153,11 @@ namespace agentinferkv
         // 减到 0 时回池。
         virtual void ReleaseSharedBlock(BlockId id) = 0;
 
+        // 原子地"检查块是否还在分配中" + "引用计数加一"。
+        // 返回 false 表示该块已被回收（或从未分配），调用方不得再使用这个 id。
+        // 查活和加引用必须落在同一临界区，否则两步之间块可能被回收、再分配给别的请求。
+        virtual bool RetainIfAlive(BlockId id) = 0;
+
         // 返回“如果准入这个请求，预估需要多少块”
         // Naive 用 prompt + max_new，Paged 用 prompt
         // Scheduler 的预算扣减依赖它，保证“估算”和“实际分配”口径一致

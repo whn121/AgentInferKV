@@ -27,6 +27,8 @@ namespace agentinferkv
 
     PrefixCache::MatchResult PrefixCache::Match(const std::vector<TokenId>& prompt, int block_size) const
     {
+        std::lock_guard<std::mutex> lk(mu_);
+
         ++total_queries_;
 
         MatchResult result;
@@ -55,9 +57,47 @@ namespace agentinferkv
         return result;
     }
 
+    PrefixCache::MatchResult PrefixCache::MatchAndRetain(const std::vector<TokenId>& prompt, int block_size)
+    {
+        std::lock_guard<std::mutex> lk(mu_);
+
+        ++total_queries_;
+
+        MatchResult result;
+        Node* cur = &root_;
+        int offset = 0;
+        const int n = static_cast<int>(prompt.size());
+
+        std::vector<Node*> touched;
+        while (offset + block_size <= n)
+        {
+            std::vector<TokenId> block_tokens(prompt.begin() + offset, prompt.begin() + offset + block_size);
+            Node* matched = FindChild(cur, block_tokens);
+            if (matched == nullptr) break;
+
+            // 持锁状态下完成"查活 + 加引用"。
+            // 淘汰路径（EvictOne）也要先拿这把锁，所以不会出现
+            // "匹配到块 → 还没加引用 → 块被淘汰回收再分配给别人" 的窗口。
+            if (block_mgr_ != nullptr && !block_mgr_->RetainIfAlive(matched->block_id)) break;
+
+            result.matched_blocks.push_back(matched->block_id);
+            result.matched_tokens += block_size;
+            touched.push_back(matched);
+            cur = matched;
+            offset += block_size;
+        }
+
+        for (Node* node : touched) Touch(node);
+
+        if (result.matched_tokens > 0) total_hits_++;
+        return result;
+    }
+
     std::vector<BlockId> PrefixCache::Insert(const std::vector<TokenId>& prompt, const std::vector<BlockId>& blocks
                                             , int block_size)
     {
+        std::lock_guard<std::mutex> lk(mu_);
+
         std::vector<BlockId> newly_created;
         Node* cur = &root_;
         int offset = 0;
@@ -96,6 +136,8 @@ namespace agentinferkv
 
     void PrefixCache::Release(const std::vector<TokenId>& prompt, int block_size)
     {
+        std::lock_guard<std::mutex> lk(mu_);
+
         Node* cur = &root_;
         int offset = 0;
         const int n = static_cast<int>(prompt.size());
@@ -113,6 +155,7 @@ namespace agentinferkv
 
     void PrefixCache::Trim()
     {
+        std::lock_guard<std::mutex> lk(mu_);
         EvictIfNeeded();
     }
 

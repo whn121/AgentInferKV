@@ -12,7 +12,7 @@ namespace agentinferkv
         }
     }
 
-    bool NaivePreallocator::CanAllocate(const Request& req, const std::vector<BlockId>& prefix_blocks) const
+    bool NaivePreallocator::CanAllocateLocked (const Request& req, const std::vector<BlockId>& prefix_blocks) const
     {
         if (tables_.count(req.id)) return false;
         int prefix_tokens = static_cast<int>(prefix_blocks.size()) * config_.block_size;
@@ -22,9 +22,16 @@ namespace agentinferkv
         return static_cast<int>(free_blocks_.size()) >= need;
     }
 
-    BlockTableView NaivePreallocator::Allocate(const Request& req, const std::vector<BlockId>& prefix_blocks)
+    bool NaivePreallocator::CanAllocate (const Request& req, const std::vector<BlockId>& prefix_blocks) const
     {
-        if (!CanAllocate(req, prefix_blocks)) return BlockTableView{};
+        std::lock_guard<std::mutex> lk(mu_);
+        return CanAllocateLocked(req, prefix_blocks);
+    }
+
+    BlockTableView NaivePreallocator::Allocate (const Request& req, const std::vector<BlockId>& prefix_blocks)
+    {
+        std::lock_guard<std::mutex> lk(mu_);
+        if (!CanAllocateLocked(req, prefix_blocks)) return BlockTableView{};
 
         int prefix_tokens = static_cast<int>(prefix_blocks.size()) * config_.block_size;
         int suffix_tokens = req.TotalTokens() - prefix_tokens;
@@ -34,12 +41,12 @@ namespace agentinferkv
         BlockTableView view;
         view.logical_to_physical.reserve(prefix_blocks.size() + static_cast<std::size_t>(need));
         // 先放 prefix 块, 引用计数已由调用方 Retain，这里不再设 ref
-        for (BlockId bid : prefix_blocks) 
+        for (BlockId bid : prefix_blocks)
         {
             view.logical_to_physical.push_back(bid);
         }
         // 再分配后缀新块
-        for (int i = 0; i < need; ++i) 
+        for (int i = 0; i < need; ++i)
         {
             BlockId bid = free_blocks_.back();
             free_blocks_.pop_back();
@@ -50,60 +57,79 @@ namespace agentinferkv
         return view;
     }
 
-    bool NaivePreallocator::IsBlockAlive(BlockId id) const 
+    bool NaivePreallocator::IsBlockAlive (BlockId id) const
     {
+        std::lock_guard<std::mutex> lk(mu_);
         return ref_counts_.count(id) > 0;
     }
 
-    void NaivePreallocator::Free(RequestId id)
+    void NaivePreallocator::Free (RequestId id)
     {
+        std::lock_guard<std::mutex> lk(mu_);
         auto it = tables_.find(id);
         if (it == tables_.end()) return;  // 重复 Free
 
-        for (BlockId bid : it->second.logical_to_physical) 
+        for (BlockId bid : it->second.logical_to_physical)
         {
-            ReleaseSharedBlock(bid);
+            ReleaseLocked(bid);
         }
         tables_.erase(it);
     }
 
-    bool NaivePreallocator::AppendToken(RequestId id, int new_total_tokens, BlockTableView& out_view)
+    bool NaivePreallocator::AppendToken (RequestId id, int new_total_tokens, BlockTableView& out_view)
     {
         (void)new_total_tokens;  // Naive 不看目标容量，已经分满
-
+        std::lock_guard<std::mutex> lk(mu_);
         auto it = tables_.find(id);
-        if (it == tables_.end()) return false;  
+        if (it == tables_.end()) return false;
 
         out_view = it->second;  // 写回当前视图，内容不变
         return true;
     }
 
-    void NaivePreallocator::RetainSharedBlock(BlockId id) 
+    void NaivePreallocator::RetainSharedBlock (BlockId id)
     {
+        std::lock_guard<std::mutex> lk(mu_);
         auto it = ref_counts_.find(id);
         if (it == ref_counts_.end()) return;  // 未分配的块，防御性忽略
         it->second++;
     }
 
-    void NaivePreallocator::ReleaseSharedBlock(BlockId id) 
+    void NaivePreallocator::ReleaseSharedBlock (BlockId id)
+    {
+        std::lock_guard<std::mutex> lk(mu_);
+        ReleaseLocked(id);
+    }
+
+    void NaivePreallocator::ReleaseLocked (BlockId id)
     {
         auto rc = ref_counts_.find(id);
         if (rc == ref_counts_.end()) return;
         rc->second--;
-        if (rc->second <= 0) 
+        if (rc->second <= 0)
         {
             free_blocks_.push_back(id);
             ref_counts_.erase(rc);
         }
     }
 
-    int NaivePreallocator::EstimateBlocks(const Request& req) const 
+    bool NaivePreallocator::RetainIfAlive (BlockId id)
+    {
+        std::lock_guard<std::mutex> lk(mu_);
+        auto it = ref_counts_.find(id);
+        if (it == ref_counts_.end()) return false;
+        it->second++;
+        return true;
+    }
+
+    int NaivePreallocator::EstimateBlocks (const Request& req) const
     {
         return config_.BlocksForTokens(req.TotalTokens());
     }
 
-    int NaivePreallocator::NumFreeBlocks() const 
+    int NaivePreallocator::NumFreeBlocks() const
     {
+        std::lock_guard<std::mutex> lk(mu_);
         return static_cast<int>(free_blocks_.size());
     }
 }

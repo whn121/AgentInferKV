@@ -417,17 +417,9 @@ namespace agentinferkv
                 std::vector<BlockId> prefix_blocks;
                 if (prefix_cache_ != nullptr) 
                 {
-                    auto raw = prefix_cache_->Match(it->prompt_tokens, config_.block_size);
-                    for (BlockId bid : raw.matched_blocks) 
-                    {
-                        if (!block_mgr_.IsBlockAlive(bid)) break;  // stale 引用, 路径断
-                        prefix_blocks.push_back(bid);
-                    }
-                    // Retain 共享块的引用
-                    for (BlockId bid : prefix_blocks) 
-                    {
-                        block_mgr_.RetainSharedBlock(bid);
-                    }
+                    // 匹配 + 加引用一步完成：不会出现"查到块、还没加引用就被回收"的窗口
+                    auto raw = prefix_cache_->MatchAndRetain(it->prompt_tokens, config_.block_size);
+                    prefix_blocks = raw.matched_blocks;
                     it->cached_prefix_len = static_cast<int>(prefix_blocks.size()) * config_.block_size;
                 }
 
