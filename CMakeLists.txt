@@ -38,6 +38,10 @@ add_executable(agentinferkv_kvcell_demo tools/kv_cell_demo.cpp)
 add_executable(agentinferkv_cell_demo src/experiment6.cpp)
 target_link_libraries(agentinferkv_cell_demo PRIVATE agentinferkv_core)
 
+# 前缀共享度扫描：公共前缀占比 -> 命中率 / 复用量（README 曲线由它产出）
+add_executable(agentinferkv_prefix_scan tools/prefix_scan.cpp)
+target_link_libraries(agentinferkv_prefix_scan PRIVATE agentinferkv_core)
+
 # 最小 HTTP 服务（把外部请求接到控制面）
 add_executable(agentinferkv_http tools/http_server.cpp)
 target_link_libraries(agentinferkv_http PRIVATE agentinferkv_core)

@@ -66,6 +66,12 @@ namespace agentinferkv
         std::size_t CachedBlocks() const { return by_block_.size(); }
         std::size_t EvictedBlocks() const { return evicted_blocks_; }
 
+        // 观测：真正分配时的匹配次数 / 命中次数 / 复用 token 数
+        // （不含调度阶段用于估预算的 Match，否则会被等待队列重复放大）
+        std::size_t ReusedTokens() const { return reused_tokens_; }
+        int RetainQueries() const { return retain_queries_; }
+        int RetainHits() const { return retain_hits_; }
+
         // 在请求之间的间隙调用，把仍然超额的缓存压回 max_cached_blocks。
         // Insert 时也会尝试淘汰，但如果当时所有叶子都被活跃请求引用，就会暂时超额。
         void Trim();
@@ -97,6 +103,9 @@ namespace agentinferkv
         mutable std::unordered_map<BlockId, Node*> by_block_;
 
         mutable int total_queries_ = 0;
+        mutable std::size_t reused_tokens_ = 0;
+        mutable int retain_queries_ = 0;
+        mutable int retain_hits_ = 0;
         mutable int total_hits_ = 0;
         std::size_t evicted_blocks_ = 0;
     };

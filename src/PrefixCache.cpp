@@ -90,6 +90,9 @@ namespace agentinferkv
         for (Node* node : touched) Touch(node);
 
         if (result.matched_tokens > 0) total_hits_++;
+        ++retain_queries_;
+        if (result.matched_tokens > 0) ++retain_hits_;
+        reused_tokens_ += static_cast<std::size_t>(result.matched_tokens);
         return result;
     }
 
