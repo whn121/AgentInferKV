@@ -59,7 +59,8 @@ foreach(test_name
     test_prefill_once
     test_prefix_sharing
     test_lru_eviction
-    test_running_reservation)
+    test_running_reservation
+    test_concurrent_release)
   add_executable(${test_name} tests/${test_name}.cpp)
   target_link_libraries(${test_name} PRIVATE agentinferkv_core)
   add_test(NAME ${test_name} COMMAND ${test_name})

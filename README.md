@@ -617,6 +617,7 @@ run_all_experiments.sh   一键复现全部实验
 | **test_prefill_once** | 每个请求 Prefill 恰好一次；总计算步数 == 生成 token 数 |
 | **test_prefix_sharing** | 命中块真的进入请求块表；40 请求 soak 后块账目守恒 |
 | **test_lru_eviction** | LRU 淘汰顺序、容量上限、淘汰后块回池、无 manager 时退化为不淘汰 |
+| **test_concurrent_release** | 8 线程并发 Retain/Release、双线程同时 Free、回池后 Retain 被拒；断言回池数恰好等于块数 |
 
 ## 已知短板
 
@@ -635,5 +636,7 @@ run_all_experiments.sh   一键复现全部实验
 - **batch 合并的耗时统一用 total**：每个请求都等整个 batch 完成，单个请求的模拟延迟会
   略高，但总吞吐提升。
 - **没有端到端集成**：AgentRuntime 网络层和 AgentInferKV 是接口级衔接，还没做端到端部署。
-- **没有 preemption**：块不足只能取消请求，实验 1 的完成率下降就是证据。
-- **测试未做故障注入**：未覆盖并发竞争、进程崩溃、长时间运行稳定性。
+- **抢占是简化版**：只实现 recompute（抢自己、保留已生成 token），Victim 策略仅作为
+  实验对照，未做优先级抢占。
+- **测试未做故障注入**：并发竞争已由 `test_concurrent_release` 覆盖，但进程崩溃、
+  长时间运行稳定性仍未覆盖。
