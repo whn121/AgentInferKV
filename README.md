@@ -406,6 +406,23 @@ abort。开了 unified 之后 `n_stream == 1`，`seq_cp` 走"共享 cell 元数�
 6. **失败路径的 seq 归还**：`Prefill` 解码失败时原来只把 seq 塞回 free list，却把
    `seq_map_[req.id]` 留着，`Release` 会二次归还同一个 seq_id。现在一并清掉。
 
+## 分页 KV 的 Attention 参考实现（2026-11-27）
+
+`tools/paged_attention_ref.cpp` 用来回答一个问题：**block table 到底怎么参与 attention 访存？**
+
+做法：同一份 KV 分别用两种布局存——
+
+- 连续布局：`K[pos][dim]`，直接按位置取；
+- 分页布局：`K[物理块][块内偏移][dim]`，逻辑位置 p 先查 `block_table[p / block_size]`
+  得到物理块，再用 `p % block_size` 取块内偏移。
+
+block table 故意打乱（例如 `7 5 4 0`），两版 attention 输出完全一致（`max_abs_diff = 0`）。
+
+**结论**：分页只改变"寻址方式"，不改变数学；代价是每次访存多一次间接寻址，
+换来的是物理块可以不连续、可以共享、可以换出。
+
+复现：`./build/agentinferkv_paged_attn_ref`
+
 ## 前缀共享度扫描（2026-11-24）
 
 固定 100 请求 × 256 token、block 16、池 2048 块、缓存不淘汰，只改公共前缀占比：

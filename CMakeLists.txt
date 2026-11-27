@@ -38,6 +38,9 @@ add_executable(agentinferkv_kvcell_demo tools/kv_cell_demo.cpp)
 add_executable(agentinferkv_cell_demo src/experiment6.cpp)
 target_link_libraries(agentinferkv_cell_demo PRIVATE agentinferkv_core)
 
+# 分页 KV 的 attention 参考实现：证明 block table 参与访存（面试可画）
+add_executable(agentinferkv_paged_attn_ref tools/paged_attention_ref.cpp)
+
 # 前缀共享度扫描：公共前缀占比 -> 命中率 / 复用量（README 曲线由它产出）
 add_executable(agentinferkv_prefix_scan tools/prefix_scan.cpp)
 target_link_libraries(agentinferkv_prefix_scan PRIVATE agentinferkv_core)
